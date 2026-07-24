@@ -1,4 +1,3 @@
-<Project Sdk="WixToolset.Sdk/4.0.6">
-  <PropertyGroup><OutputType>Package</OutputType><Platform>x64</Platform><Version>1.0.0</Version></PropertyGroup>
-  <ItemGroup><BindPath Include="..\publish" /></ItemGroup>
+<Project Sdk="WixToolset.Sdk/5.0.2">
+  <PropertyGroup><OutputType>Package</OutputType><OutputName>DadwayVPN-Windows-v2.0.0</OutputName><Platform>x64</Platform></PropertyGroup>
 </Project>

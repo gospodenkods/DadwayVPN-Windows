@@ -9,8 +9,13 @@
     <ApplicationIcon>Assets\dadway.ico</ApplicationIcon>
     <AssemblyName>DadwayVPN</AssemblyName>
     <RootNamespace>DadwayVPN.Windows</RootNamespace>
-    <Version>1.0.0</Version>
+    <Version>2.0.0</Version>
+    <AssemblyVersion>2.0.0.0</AssemblyVersion>
+    <FileVersion>2.0.0.0</FileVersion>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>false</PublishSingleFile>
+    <PublishReadyToRun>true</PublishReadyToRun>
   </PropertyGroup>
   <ItemGroup>
     <Resource Include="Assets\logo.png" />

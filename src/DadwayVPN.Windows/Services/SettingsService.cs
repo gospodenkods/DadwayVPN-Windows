@@ -1,19 +1,14 @@
+using DadwayVPN.Windows.Models;
 using System.Text.Json;
 namespace DadwayVPN.Windows.Services;
-public sealed class AppSettings
-{
-    public string SelectedProfileId { get; set; } = "russia";
-    public bool AutoStart { get; set; }
-    public bool AutoConnect { get; set; }
-    public bool EnableSystemProxy { get; set; } = true;
-    public bool KillSwitch { get; set; }
-}
 public sealed class SettingsService
 {
+    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
     public AppSettings Load()
     {
-        try { return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(AppPaths.Settings)) ?? new(); }
+        AppPaths.Ensure();
+        try { return File.Exists(AppPaths.Settings) ? JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(AppPaths.Settings), JsonOptions) ?? new() : new(); }
         catch { return new(); }
     }
-    public void Save(AppSettings value) => File.WriteAllText(AppPaths.Settings, JsonSerializer.Serialize(value, new JsonSerializerOptions { WriteIndented = true }));
+    public void Save(AppSettings value) { AppPaths.Ensure(); File.WriteAllText(AppPaths.Settings, JsonSerializer.Serialize(value, JsonOptions)); }
 }

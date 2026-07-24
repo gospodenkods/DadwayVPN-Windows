@@ -8,6 +8,7 @@ public sealed class XrayCoreService
     private Process? _process;
     private readonly LogService _log;
     public bool IsRunning => _process is { HasExited: false };
+    public event Action? UnexpectedExit;
     public XrayCoreService(LogService log) => _log = log;
     public async Task EnsureAsync(CancellationToken token)
     {
@@ -16,7 +17,7 @@ public sealed class XrayCoreService
         if (File.Exists(exe)) return;
         _log.Write("Загрузка Xray Core...");
         using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(3) };
-        http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("DadwayVPN-Windows", "1.0"));
+        http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("DadwayVPN-Windows", "2.0"));
         var release = JsonDocument.Parse(await http.GetStringAsync("https://api.github.com/repos/XTLS/Xray-core/releases/latest", token));
         var url = release.RootElement.GetProperty("assets").EnumerateArray()
             .First(x => x.GetProperty("name").GetString()!.Equals("Xray-windows-64.zip", StringComparison.OrdinalIgnoreCase))
@@ -36,6 +37,7 @@ public sealed class XrayCoreService
         _process = Process.Start(psi) ?? throw new InvalidOperationException("Не удалось запустить Xray Core.");
         _process.OutputDataReceived += (_,e)=> { if(!string.IsNullOrWhiteSpace(e.Data)) _log.Write("CORE: "+e.Data); };
         _process.ErrorDataReceived += (_,e)=> { if(!string.IsNullOrWhiteSpace(e.Data)) _log.Write("CORE: "+e.Data); };
+        _process.EnableRaisingEvents=true; _process.Exited += (_,_) => UnexpectedExit?.Invoke();
         _process.BeginOutputReadLine(); _process.BeginErrorReadLine();
         await Task.Delay(1200, token);
         if (_process.HasExited) throw new InvalidOperationException("Xray Core завершился сразу после запуска. См. журнал.");

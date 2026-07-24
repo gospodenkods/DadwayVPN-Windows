@@ -1,29 +1,17 @@
-# Dadway VPN for Windows 10
+# Dadway VPN for Windows 2.0
 
-Нативный клиент WPF/.NET 8 для Windows 10 x64 с Xray Core и фирменным интерфейсом Dadway VPN.
+Нативный клиент для Windows 10/11 на .NET 8 WPF.
 
-## Реализовано
+## Возможности
+- Россия, USA, Netherlands;
+- VLESS WS/TLS и XHTTP/REALITY;
+- автоматическая загрузка и обновление Xray Core;
+- системный HTTP/SOCKS-прокси с восстановлением предыдущих параметров;
+- автопереподключение при смене сети или остановке ядра;
+- автоматический fallback Россия → USA;
+- внешний IP, ping, тест загрузки, длительность сессии;
+- трей, автозапуск, экспорт логов;
+- portable ZIP и MSI через GitHub Actions.
 
-- три профиля: Россия, USA, Netherlands;
-- загрузка и кэширование подписок;
-- VLESS + WS/TLS и XHTTP/REALITY;
-- системный HTTP/HTTPS-прокси Windows;
-- исключение доменов `.ru`, `.by`, `.su` из проксирования;
-- загрузка официального Xray Core при первом запуске;
-- выбор сервера тремя карточками в одной линии;
-- трей, автозапуск, журнал, внешний IP и ping;
-- portable-сборка и MSI через GitHub Actions.
-
-## Важно
-
-Версия 1.0 использует системный прокси Windows. Полноценный TUN/Wintun и строгий Kill Switch заложены как следующий этап: они требуют отдельной Windows-службы с повышенными правами и драйвера. Интерфейс содержит настройку Kill Switch в модели, но сетевой фильтр в этой версии не активируется.
-
-## Локальная сборка
-
-```powershell
-dotnet publish src\DadwayVPN.Windows\DadwayVPN.Windows.csproj -c Release -r win-x64 --self-contained true -o publish
-```
-
-## GitHub Actions
-
-После push откройте **Actions → Build Dadway VPN Windows**. Артефакт содержит portable ZIP и MSI.
+## Ограничение
+Версия 2.0 использует системный прокси Windows. Это покрывает приложения, которые поддерживают WinINET/системный proxy. Полный TUN всего трафика требует отдельной привилегированной службы и драйвера Wintun и не заявлен как активный в этой сборке.

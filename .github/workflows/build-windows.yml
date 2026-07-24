@@ -1,35 +1,36 @@
-name: Build Dadway VPN Windows
+name: Build Dadway VPN Windows v2.0
 on:
   workflow_dispatch:
   push:
     branches: [ main ]
 jobs:
   build:
-    runs-on: windows-latest
-    permissions: { contents: write }
+    runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
-        with: { dotnet-version: '8.0.x' }
+        with:
+          dotnet-version: '8.0.x'
       - name: Restore
         run: dotnet restore DadwayVPN.Windows.sln
-      - name: Publish portable self-contained
-        run: dotnet publish src/DadwayVPN.Windows/DadwayVPN.Windows.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=false -o publish
+      - name: Build
+        run: dotnet build DadwayVPN.Windows.sln -c Release --no-restore
+      - name: Publish portable
+        run: dotnet publish src/DadwayVPN.Windows/DadwayVPN.Windows.csproj -c Release -r win-x64 --self-contained true -o artifacts/portable
+      - name: Archive portable
+        shell: pwsh
+        run: Compress-Archive -Path artifacts/portable/* -DestinationPath artifacts/DadwayVPN-Windows-v2.0.0-Portable.zip
       - name: Build MSI
-        run: dotnet build installer/DadwayVPN.Installer.wixproj -c Release -o installer-output
-      - name: Create portable ZIP
-        shell: powershell
-        run: Compress-Archive -Path publish\* -DestinationPath DadwayVPN-Windows-Portable.zip -Force
+        run: dotnet build installer/DadwayVPN.Installer.wixproj -c Release -p:PublishDir=${{ github.workspace }}\artifacts\portable\
+      - name: Collect MSI
+        shell: pwsh
+        run: |
+          $msi = Get-ChildItem installer -Recurse -Filter *.msi | Select-Object -First 1
+          if ($msi) { Copy-Item $msi.FullName artifacts/DadwayVPN-Windows-v2.0.0.msi }
       - uses: actions/upload-artifact@v4
         with:
-          name: DadwayVPN-Windows
+          name: DadwayVPN-Windows-v2.0.0
           path: |
-            DadwayVPN-Windows-Portable.zip
-            installer-output\*.msi
-      - name: Release on tag
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            DadwayVPN-Windows-Portable.zip
-            installer-output/*.msi
+            artifacts/DadwayVPN-Windows-v2.0.0-Portable.zip
+            artifacts/DadwayVPN-Windows-v2.0.0.msi
+          if-no-files-found: error
