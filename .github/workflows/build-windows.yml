@@ -1,0 +1,35 @@
+name: Build Dadway VPN Windows
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions: { contents: write }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with: { dotnet-version: '8.0.x' }
+      - name: Restore
+        run: dotnet restore DadwayVPN.Windows.sln
+      - name: Publish portable self-contained
+        run: dotnet publish src/DadwayVPN.Windows/DadwayVPN.Windows.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=false -o publish
+      - name: Build MSI
+        run: dotnet build installer/DadwayVPN.Installer.wixproj -c Release -o installer-output
+      - name: Create portable ZIP
+        shell: powershell
+        run: Compress-Archive -Path publish\* -DestinationPath DadwayVPN-Windows-Portable.zip -Force
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DadwayVPN-Windows
+          path: |
+            DadwayVPN-Windows-Portable.zip
+            installer-output\*.msi
+      - name: Release on tag
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            DadwayVPN-Windows-Portable.zip
+            installer-output/*.msi

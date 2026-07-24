@@ -1,0 +1,28 @@
+<Window x:Class="DadwayVPN.Windows.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Dadway VPN" Width="930" Height="690" MinWidth="850" MinHeight="620" Background="{StaticResource Bg}" WindowStartupLocation="CenterScreen" Icon="Assets/dadway.ico">
+<Grid Margin="24"><Grid.ColumnDefinitions><ColumnDefinition Width="2.2*"/><ColumnDefinition Width="1.2*"/></Grid.ColumnDefinitions>
+<ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="0,0,20,0">
+<StackPanel Orientation="Horizontal"><Image Source="Assets/logo.png" Width="64" Height="64"/><StackPanel Margin="16,6"><TextBlock FontSize="30" FontWeight="Bold"><Run Text="DADWAY " Foreground="{StaticResource Yellow}"/><Run Text="VPN" Foreground="{StaticResource Red}"/></TextBlock><TextBlock Text="Быстрый • Безопасный • Надёжный" Foreground="#A9B2BD" FontSize="14"/></StackPanel></StackPanel>
+<Border Background="{StaticResource Panel}" CornerRadius="20" Margin="0,22,0,18" Padding="24"><StackPanel HorizontalAlignment="Center">
+<Button x:Name="ConnectButton" Click="ConnectButton_Click" Width="220" Height="220" Background="#111820" BorderBrush="{StaticResource Yellow}" BorderThickness="5" Foreground="White" FontSize="22" FontWeight="Bold" Cursor="Hand"><Button.Template><ControlTemplate TargetType="Button"><Border x:Name="ring" CornerRadius="110" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"><StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"><Image Source="Assets/logo.png" Width="88" Height="88"/><TextBlock x:Name="label" Text="ПОДКЛЮЧИТЬ" HorizontalAlignment="Center" FontWeight="Bold" FontSize="18" Margin="0,8,0,0"/></StackPanel></Border></ControlTemplate></Button.Template></Button>
+<TextBlock x:Name="StatusText" Text="Статус: Отключено" FontSize="16" Margin="0,16,0,0"/>
+</StackPanel></Border>
+<TextBlock Text="Выбор сервера" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10"/>
+<UniformGrid Columns="3" Rows="1" Margin="0,0,0,16">
+<Button x:Name="RussiaButton" Style="{StaticResource FlatButton}" Click="Server_Click" Tag="russia" Margin="0,0,8,0"><StackPanel><TextBlock Text="🇷🇺" FontSize="34" HorizontalAlignment="Center"/><TextBlock Text="Россия" FontSize="16" HorizontalAlignment="Center"/></StackPanel></Button>
+<Button x:Name="UsaButton" Style="{StaticResource FlatButton}" Click="Server_Click" Tag="usa" Margin="4,0"><StackPanel><TextBlock Text="🇺🇸" FontSize="34" HorizontalAlignment="Center"/><TextBlock Text="USA" FontSize="16" HorizontalAlignment="Center"/></StackPanel></Button>
+<Button x:Name="NetherlandsButton" Style="{StaticResource FlatButton}" Click="Server_Click" Tag="netherlands" Margin="8,0,0,0"><StackPanel><TextBlock Text="🇳🇱" FontSize="34" HorizontalAlignment="Center"/><TextBlock Text="Netherlands" FontSize="16" HorizontalAlignment="Center"/></StackPanel></Button>
+</UniformGrid>
+<UniformGrid Columns="3" Margin="0,0,0,16">
+<Border Background="{StaticResource Panel}" CornerRadius="14" Padding="16" Margin="0,0,8,0"><StackPanel><TextBlock Text="ВНЕШНИЙ IP" Foreground="#8793A1"/><TextBlock x:Name="IpText" Text="—" FontSize="20" Margin="0,8,0,0"/></StackPanel></Border>
+<Border Background="{StaticResource Panel}" CornerRadius="14" Padding="16" Margin="4,0"><StackPanel><TextBlock Text="PING" Foreground="#8793A1"/><TextBlock x:Name="PingText" Text="— мс" FontSize="20" Margin="0,8,0,0"/></StackPanel></Border>
+<Border Background="{StaticResource Panel}" CornerRadius="14" Padding="16" Margin="8,0,0,0"><StackPanel><TextBlock Text="СЕРВЕР" Foreground="#8793A1"/><TextBlock x:Name="ServerText" Text="Россия" FontSize="20" Margin="0,8,0,0"/></StackPanel></Border>
+</UniformGrid>
+<UniformGrid Columns="4"><Button Style="{StaticResource FlatButton}" Click="Test_Click" Margin="0,0,6,0">Проверить IP</Button><Button Style="{StaticResource FlatButton}" Click="OpenLogs_Click" Margin="2,0">Логи</Button><Button Style="{StaticResource FlatButton}" Click="Site_Click" Margin="2,0">dadway.ru</Button><Button Style="{StaticResource FlatButton}" Click="Telegram_Click" Margin="6,0,0,0">Telegram</Button></UniformGrid>
+</StackPanel></ScrollViewer>
+<Border Grid.Column="1" Background="{StaticResource Panel}" CornerRadius="18" Padding="18"><Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+<TextBlock Text="ЖУРНАЛ" FontSize="18" FontWeight="Bold" Foreground="{StaticResource Yellow}"/>
+<TextBox x:Name="LogBox" Grid.Row="1" Margin="0,14,0,14" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Background="#0C1218" Foreground="#C9D2DC" BorderThickness="0" Padding="10"/>
+<StackPanel Grid.Row="2"><CheckBox x:Name="SystemProxyCheck" Content="Использовать системный прокси" IsChecked="True" Foreground="White" Margin="0,4"/><CheckBox x:Name="AutoStartCheck" Content="Запускать с Windows" Foreground="White" Margin="0,4" Checked="AutoStart_Changed" Unchecked="AutoStart_Changed"/><TextBlock Text="Режим Windows 10: Xray Core + HTTP/SOCKS системный прокси. Для работы требуется доступ к загрузке ядра при первом запуске." Foreground="#7F8A96" TextWrapping="Wrap" Margin="0,12,0,0"/></StackPanel>
+</Grid></Border>
+</Grid></Window>
