@@ -16,7 +16,7 @@ public static class VlessConfigBuilder
         if (network.Equals("xhttp", StringComparison.OrdinalIgnoreCase) || network.Equals("splithttp", StringComparison.OrdinalIgnoreCase))
             stream["xhttpSettings"] = new JsonObject { ["path"] = Get(q,"path") ?? "/", ["host"] = Get(q,"host") ?? "", ["mode"] = Get(q,"mode") ?? "auto" };
         if (security.Equals("tls", StringComparison.OrdinalIgnoreCase))
-            stream["tlsSettings"] = new JsonObject { ["serverName"] = Get(q,"sni") ?? uri.Host, ["allowInsecure"] = false, ["alpn"] = new JsonArray((Get(q,"alpn") ?? "http/1.1").Split(',').Select(JsonValue.Create).ToArray()) };
+            stream["tlsSettings"] = new JsonObject { ["serverName"] = Get(q,"sni") ?? uri.Host, ["allowInsecure"] = false, ["alpn"] = new JsonArray((Get(q,"alpn") ?? "http/1.1").Split(',', StringSplitOptions.RemoveEmptyEntries).Select(value => (JsonNode?)JsonValue.Create(value.Trim())).ToArray()) };
         if (security.Equals("reality", StringComparison.OrdinalIgnoreCase))
         {
             var sni = Get(q,"sni") ?? Get(q,"serverName") ?? throw new InvalidDataException("REALITY: отсутствует SNI.");

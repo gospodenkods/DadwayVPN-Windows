@@ -2,8 +2,9 @@ using DadwayVPN.Windows.Models;
 using DadwayVPN.Windows.Services;
 using System.Diagnostics;
 using System.Windows;
-using System.Windows.Controls;
+using WpfButton = System.Windows.Controls.Button;
 using System.Windows.Media;
+using WpfBrush = System.Windows.Media.Brush;
 using System.Windows.Threading;
 using Forms = System.Windows.Forms;
 
@@ -59,9 +60,9 @@ public partial class MainWindow : Window
     private async Task HandleNetworkChangedAsync(){if(_state!=ConnectionState.Connected||AutoReconnectCheck.IsChecked!=true)return;_log.Write("Изменение сети. Переподключение...");await DisconnectCoreAsync();await Task.Delay(1000);await ConnectSelectedAsync();}
     private async Task UpdateDiagnosticsAsync(){try{var d=await DiagnosticsService.TestAsync(CancellationToken.None);IpText.Text=d.Ip;PingText.Text=$"{d.PingMs} мс";DownloadText.Text=$"{d.DownloadMbps:F1} Мбит/с";_log.Write($"Тест: IP={d.Ip}, ping={d.PingMs} мс, download={d.DownloadMbps:F1} Мбит/с");}catch(Exception ex){_log.Write("Диагностика: "+ex.Message);}}
     private async void Test_Click(object s,RoutedEventArgs e)=>await UpdateDiagnosticsAsync();
-    private void Server_Click(object s,RoutedEventArgs e){if(_state is ConnectionState.Connected or ConnectionState.Connecting)return;SelectProfile((string)((Button)s).Tag,true);}
-    private void SelectProfile(string id,bool log){if(!_profiles.Any(x=>x.Id==id))id="russia";_settings.SelectedProfileId=id;_settingsService.Save(_settings);var p=_profiles.First(x=>x.Id==id);ServerText.Text=p.Title;foreach(var b in new[]{RussiaButton,UsaButton,NetherlandsButton})b.BorderBrush=(Brush)new BrushConverter().ConvertFrom("#354150")!;(id=="russia"?RussiaButton:id=="usa"?UsaButton:NetherlandsButton).BorderBrush=(Brush)FindResource("Yellow");if(log)_log.Write("Выбран сервер: "+p.Title);}
-    private void SetState(ConnectionState state){_state=state;var connected=state==ConnectionState.Connected;ConnectButton.BorderBrush=(Brush)FindResource(connected?"Green":state==ConnectionState.Error?"Red":"Yellow");ConnectLabel.Text=connected?"ОТКЛЮЧИТЬ":state==ConnectionState.Connecting?"ПОДКЛЮЧЕНИЕ...":state==ConnectionState.Reconnecting?"ПЕРЕПОДКЛЮЧЕНИЕ...":"ПОДКЛЮЧИТЬ";StatusText.Text=state switch{ConnectionState.Connected=>"Подключено",ConnectionState.Connecting=>"Подключение...",ConnectionState.Reconnecting=>"Переподключение...",ConnectionState.Error=>"Ошибка",_=>"Отключено"};}
+    private void Server_Click(object s,RoutedEventArgs e){if(_state is ConnectionState.Connected or ConnectionState.Connecting)return;SelectProfile((string)((WpfButton)s).Tag,true);}
+    private void SelectProfile(string id,bool log){if(!_profiles.Any(x=>x.Id==id))id="russia";_settings.SelectedProfileId=id;_settingsService.Save(_settings);var p=_profiles.First(x=>x.Id==id);ServerText.Text=p.Title;foreach(var b in new[]{RussiaButton,UsaButton,NetherlandsButton})b.BorderBrush=(WpfBrush)new BrushConverter().ConvertFrom("#354150")!;(id=="russia"?RussiaButton:id=="usa"?UsaButton:NetherlandsButton).BorderBrush=(WpfBrush)FindResource("Yellow");if(log)_log.Write("Выбран сервер: "+p.Title);}
+    private void SetState(ConnectionState state){_state=state;var connected=state==ConnectionState.Connected;ConnectButton.BorderBrush=(WpfBrush)FindResource(connected?"Green":state==ConnectionState.Error?"Red":"Yellow");ConnectLabel.Text=connected?"ОТКЛЮЧИТЬ":state==ConnectionState.Connecting?"ПОДКЛЮЧЕНИЕ...":state==ConnectionState.Reconnecting?"ПЕРЕПОДКЛЮЧЕНИЕ...":"ПОДКЛЮЧИТЬ";StatusText.Text=state switch{ConnectionState.Connected=>"Подключено",ConnectionState.Connecting=>"Подключение...",ConnectionState.Reconnecting=>"Переподключение...",ConnectionState.Error=>"Ошибка",_=>"Отключено"};}
     private void ExportLogs_Click(object s,RoutedEventArgs e){try{var p=_log.Export();_log.Write("Лог экспортирован: "+p);Process.Start(new ProcessStartInfo("explorer.exe",$"/select,\"{p}\""){UseShellExecute=true});}catch(Exception ex){_log.Write("Экспорт логов: "+ex.Message);}}
     private void Site_Click(object s,RoutedEventArgs e)=>OpenUrl("https://dadway.ru");private void Telegram_Click(object s,RoutedEventArgs e)=>OpenUrl("https://t.me/gds_technical");private static void OpenUrl(string u)=>Process.Start(new ProcessStartInfo(u){UseShellExecute=true});
     private void Settings_Changed(object s,RoutedEventArgs e){if(!IsLoaded)return;_settings.AutoStart=AutoStartCheck.IsChecked==true;_settings.EnableSystemProxy=SystemProxyCheck.IsChecked==true;_settings.AutoReconnect=AutoReconnectCheck.IsChecked==true;_settings.AutoFallback=AutoFallbackCheck.IsChecked==true;AutoStartService.Set(_settings.AutoStart);_settingsService.Save(_settings);}
