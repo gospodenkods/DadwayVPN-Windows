@@ -1,36 +1,53 @@
-name: Build Dadway VPN Windows v2.0.2
+name: Build Dadway VPN Windows v2.0.3
+
 on:
   workflow_dispatch:
   push:
     branches: [ main ]
+
 jobs:
   build:
     runs-on: windows-2022
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
+
       - name: Restore
         run: dotnet restore DadwayVPN.Windows.sln
+
       - name: Build
         run: dotnet build DadwayVPN.Windows.sln -c Release --no-restore
+
       - name: Publish portable
         run: dotnet publish src/DadwayVPN.Windows/DadwayVPN.Windows.csproj -c Release -r win-x64 --self-contained true -o artifacts/portable
+
       - name: Archive portable
         shell: pwsh
-        run: Compress-Archive -Path artifacts/portable/* -DestinationPath artifacts/DadwayVPN-Windows-v2.0.2-Portable.zip
+        run: Compress-Archive -Path artifacts/portable/* -DestinationPath artifacts/DadwayVPN-Windows-v2.0.3-Portable.zip -Force
+
       - name: Build MSI
-        run: dotnet build installer/DadwayVPN.Installer.wixproj -c Release -p:PublishDir=${{ github.workspace }}\artifacts\portable\
+        shell: pwsh
+        run: |
+          $publishDir = "${{ github.workspace }}\artifacts\portable\"
+          dotnet build installer/DadwayVPN.Installer.wixproj -c Release -p:PublishDir="$publishDir"
+
       - name: Collect MSI
         shell: pwsh
         run: |
           $msi = Get-ChildItem installer -Recurse -Filter *.msi | Select-Object -First 1
-          if ($msi) { Copy-Item $msi.FullName artifacts/DadwayVPN-Windows-v2.0.2.msi }
+          if (-not $msi) {
+            throw "MSI package was not created."
+          }
+          Copy-Item $msi.FullName artifacts/DadwayVPN-Windows-v2.0.3.msi -Force
+
       - uses: actions/upload-artifact@v4
         with:
-          name: DadwayVPN-Windows-v2.0.2
+          name: DadwayVPN-Windows-v2.0.3
           path: |
-            artifacts/DadwayVPN-Windows-v2.0.2-Portable.zip
-            artifacts/DadwayVPN-Windows-v2.0.2.msi
+            artifacts/DadwayVPN-Windows-v2.0.3-Portable.zip
+            artifacts/DadwayVPN-Windows-v2.0.3.msi
           if-no-files-found: error

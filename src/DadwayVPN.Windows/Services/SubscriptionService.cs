@@ -8,7 +8,7 @@ public sealed class SubscriptionService
     public SubscriptionService()
     {
         _http = new HttpClient(new HttpClientHandler { AllowAutoRedirect = true }) { Timeout = TimeSpan.FromSeconds(25) };
-        _http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("DadwayVPN-Windows", "2.0.2"));
+        _http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("DadwayVPN-Windows", "2.0.3"));
     }
     public async Task<string> GetAsync(string profileId, string url, CancellationToken token)
     {
