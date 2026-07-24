@@ -1,0 +1,24 @@
+name: Build Dadway VPN Linux
+on:
+  push:
+    branches: [ main, linux ]
+  workflow_dispatch:
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build deb
+        run: |
+          chmod +x build-deb.sh
+          ./build-deb.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DadwayVPN-Linux-deb
+          path: build/*.deb
+      - name: Portable source archive
+        run: tar --exclude=.git --exclude=build -czf DadwayVPN-Linux-1.0.0.tar.gz .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DadwayVPN-Linux-portable
+          path: DadwayVPN-Linux-1.0.0.tar.gz

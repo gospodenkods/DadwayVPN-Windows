@@ -1,0 +1,162 @@
+name: Linux Build
+
+on:
+  push:
+    branches: [main, linux, dev]
+    tags: ['v*']
+  pull_request:
+    branches: [main, linux, dev]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version without v prefix'
+        required: false
+        default: '1.0.0'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: linux-build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  APP_VERSION: ${{ github.event.inputs.version || '1.0.0' }}
+
+jobs:
+  validate:
+    name: Validate sources
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Validate Python and shell scripts
+        run: ./scripts/validate.sh
+
+  build-deb:
+    name: Build DEB (${{ matrix.deb_arch }})
+    needs: validate
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - deb_arch: amd64
+            xray_arch: x86_64
+          - deb_arch: arm64
+            xray_arch: aarch64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="${APP_VERSION}"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Install packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends dpkg-dev curl unzip ca-certificates
+
+      - name: Cache Xray download
+        uses: actions/cache@v4
+        with:
+          path: .cache/xray-${{ matrix.deb_arch }}
+          key: xray-latest-${{ matrix.deb_arch }}-${{ runner.os }}
+
+      - name: Build Debian package
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          DEB_ARCH: ${{ matrix.deb_arch }}
+        run: ./build-deb.sh
+
+      - name: Validate Debian package
+        run: |
+          dpkg-deb --info dist/*.deb
+          dpkg-deb --contents dist/*.deb
+          test -s dist/*.deb
+
+      - name: Generate checksum
+        run: sha256sum dist/*.deb > "dist/dadway-vpn_${{ steps.version.outputs.version }}_${{ matrix.deb_arch }}.deb.sha256"
+
+      - name: Upload DEB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dadway-vpn-deb-${{ matrix.deb_arch }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 30
+
+  build-portable:
+    name: Build portable archive
+    needs: validate
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="${APP_VERSION}"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Build portable archive
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          ARCH: x86_64
+        run: ./scripts/build-portable.sh
+
+      - name: Upload portable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dadway-vpn-portable
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 30
+
+  release:
+    name: Publish GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-deb, build-portable]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: List release files
+        run: find release-assets -maxdepth 2 -type f -print
+
+      - name: Create release and upload files
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            release-assets/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Dadway VPN Linux $GITHUB_REF_NAME" \
+            --generate-notes \
+            --verify-tag

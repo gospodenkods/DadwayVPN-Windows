@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Dadway VPN
+Comment=VPN-клиент Dadway для Linux
+Exec=dadway-vpn
+Icon=network-vpn
+Terminal=false
+Type=Application
+Categories=Network;Security;
+StartupNotify=true
