@@ -1,5 +1,5 @@
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
-  <Package Name="Dadway VPN" Manufacturer="Dadway" Version="2.0.0" UpgradeCode="B1F9B8A2-5A1A-4F8E-8D64-8AF3C6C1A002" Scope="perMachine">
+  <Package Name="Dadway VPN" Manufacturer="Dadway" Version="2.0.1" UpgradeCode="B1F9B8A2-5A1A-4F8E-8D64-8AF3C6C1A002" Scope="perMachine">
     <MajorUpgrade DowngradeErrorMessage="Установлена более новая версия Dadway VPN."/>
     <MediaTemplate EmbedCab="yes"/>
     <StandardDirectory Id="ProgramFiles64Folder"><Directory Id="INSTALLFOLDER" Name="Dadway VPN"/></StandardDirectory>

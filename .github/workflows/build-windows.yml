@@ -1,4 +1,4 @@
-name: Build Dadway VPN Windows v2.0
+name: Build Dadway VPN Windows v2.0.1
 on:
   workflow_dispatch:
   push:
@@ -19,18 +19,18 @@ jobs:
         run: dotnet publish src/DadwayVPN.Windows/DadwayVPN.Windows.csproj -c Release -r win-x64 --self-contained true -o artifacts/portable
       - name: Archive portable
         shell: pwsh
-        run: Compress-Archive -Path artifacts/portable/* -DestinationPath artifacts/DadwayVPN-Windows-v2.0.0-Portable.zip
+        run: Compress-Archive -Path artifacts/portable/* -DestinationPath artifacts/DadwayVPN-Windows-v2.0.1-Portable.zip
       - name: Build MSI
         run: dotnet build installer/DadwayVPN.Installer.wixproj -c Release -p:PublishDir=${{ github.workspace }}\artifacts\portable\
       - name: Collect MSI
         shell: pwsh
         run: |
           $msi = Get-ChildItem installer -Recurse -Filter *.msi | Select-Object -First 1
-          if ($msi) { Copy-Item $msi.FullName artifacts/DadwayVPN-Windows-v2.0.0.msi }
+          if ($msi) { Copy-Item $msi.FullName artifacts/DadwayVPN-Windows-v2.0.1.msi }
       - uses: actions/upload-artifact@v4
         with:
-          name: DadwayVPN-Windows-v2.0.0
+          name: DadwayVPN-Windows-v2.0.1
           path: |
-            artifacts/DadwayVPN-Windows-v2.0.0-Portable.zip
-            artifacts/DadwayVPN-Windows-v2.0.0.msi
+            artifacts/DadwayVPN-Windows-v2.0.1-Portable.zip
+            artifacts/DadwayVPN-Windows-v2.0.1.msi
           if-no-files-found: error

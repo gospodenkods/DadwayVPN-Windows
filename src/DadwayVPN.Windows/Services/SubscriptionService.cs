@@ -1,3 +1,4 @@
+using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 namespace DadwayVPN.Windows.Services;
@@ -7,7 +8,7 @@ public sealed class SubscriptionService
     public SubscriptionService()
     {
         _http = new HttpClient(new HttpClientHandler { AllowAutoRedirect = true }) { Timeout = TimeSpan.FromSeconds(25) };
-        _http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("DadwayVPN-Windows", "2.0"));
+        _http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("DadwayVPN-Windows", "2.0.1"));
     }
     public async Task<string> GetAsync(string profileId, string url, CancellationToken token)
     {
