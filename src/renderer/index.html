@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Dadway VPN</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <header>
+    <span class="logo-wrap"><img src="../../design-assets/dadway_shield_small.png" alt="Dadway"></span>
+    <span class="brand"><b>DADWAY <i>VPN</i></b><small id="buildVersion">Сборка: …</small><small id="xrayVersion">Xray: …</small></span>
+    <button id="themeToggle" class="theme-toggle" type="button" aria-label="Включить светлую тему" title="Сменить тему"><span>☀</span></button>
+    <a id="website">dadway.ru</a>
+  </header>
+
+  <section class="hero">
+    <button id="connect" class="power"><img src="../../design-assets/dadway_shield.png" alt=""><span>ПОДКЛЮЧИТЬСЯ</span></button>
+    <div id="status" class="danger">Защита выключена</div>
+    <div id="timer">00:00:00</div>
+  </section>
+
+  <div class="section-title"><b>Выбранный сервер</b><button id="refresh">↻ ОБНОВИТЬ</button></div>
+  <button id="selected" class="server-card">
+    <span class="flag" id="flag">🌐</span>
+    <span><b id="serverName">Загрузка серверов…</b><small id="serverStatus">Проверка доступности</small></span>
+    <strong>›</strong>
+  </button>
+
+  <section class="metrics">
+    <div><small>IP</small><b id="ip">—</b></div>
+    <div><small>Пинг</small><b id="ping">—</b></div>
+    <div><small>Прокси</small><b>10809</b></div>
+  </section>
+
+  <nav>
+    <button id="test">✓<small>Проверить IP</small></button>
+    <button id="logs">≡<small>Логи</small></button>
+    <button id="settings">⚙<small>Настройки</small></button>
+  </nav>
+
+  <button id="donate" class="donate" type="button"><span class="donate-icon">♥</span><span><b>ПОМОЧЬ КАНАЛУ</b><small>Поддержать развитие Dadway</small></span><strong>→</strong></button>
+  <button id="update" class="wide">ОБНОВИТЬ СПИСОК СЕРВЕРОВ</button>
+  <a id="telegram">Telegram: @gds_technical</a>
+</main>
+
+<dialog id="serverDialog">
+  <div class="dialog-head"><span><b>Выбор сервера</b><small id="updated">Проверка доступности…</small></span><button id="close">×</button></div>
+  <div id="serverList"></div><small class="hint">Недоступные серверы нельзя выбрать</small>
+</dialog>
+
+<dialog id="settingsDialog">
+  <div class="dialog-head"><b>Настройки</b><button class="close-settings">×</button></div>
+  <div class="setting-row"><span><b>Светлая тема</b><small>Изменить оформление приложения</small></span><button id="settingsTheme" class="switch" role="switch" aria-checked="false"><span></span></button></div>
+  <p>HTTP-прокси: <b>127.0.0.1:10809</b></p><p>SOCKS5: <b>127.0.0.1:10808</b></p>
+  <p class="muted">Dadway VPN автоматически включает системный прокси Windows при подключении.</p>
+</dialog>
+
+<div id="toast"></div><script src="app.js"></script>
+</body></html>

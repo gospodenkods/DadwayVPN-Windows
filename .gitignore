@@ -1,7 +1,6 @@
-.vs/
-bin/
-obj/
-publish/
-installer-output/
-*.user
-*.suo
+node_modules/
+dist/
+release/
+runtime/
+*.log
+.DS_Store

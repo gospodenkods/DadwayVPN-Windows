@@ -1,0 +1,29 @@
+{
+  "name": "dadway-vpn-windows",
+  "version": "8.3.7",
+  "description": "Dadway VPN client for Windows",
+  "main": "src/main.js",
+  "author": "Dadway",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "check": "node --check src/main.js && node --check src/preload.js && node --check src/core.js && node --check src/renderer/app.js",
+    "dist": "electron-builder --win nsis",
+    "dist:portable": "electron-builder --win portable --config.artifactName=DadwayVPN-Windows-${version}-portable-${arch}.${ext}"
+  },
+  "devDependencies": {
+    "electron": "^37.2.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "ru.dadway.vpn.windows",
+    "productName": "Dadway VPN",
+    "artifactName": "DadwayVPN-Windows-${version}-${arch}.${ext}",
+    "directories": { "output": "release" },
+    "compression": "store",
+    "files": ["src/**/*", "design-assets/**/*", "package.json"],
+    "extraResources": [{ "from": "runtime", "to": "runtime", "filter": ["**/*"] }],
+    "win": { "target": ["nsis"], "icon": "design-assets/launcher_icon_smooth-v4-source.png" },
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true, "shortcutName": "Dadway VPN" }
+  }
+}
