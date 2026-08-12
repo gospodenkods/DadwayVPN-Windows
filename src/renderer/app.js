@@ -10,6 +10,9 @@ function friendlyError(error) {
   if (/срок действия подписки ист[её]к|HTTP\s*410/i.test(raw)) return 'Срок действия подписки истёк. Продлите подписку и обновите список серверов.';
   if (/доступ к подписке запрещ[её]н|HTTP\s*(401|403)/i.test(raw)) return 'Нет доступа к подписке. Проверьте её адрес или обратитесь в поддержку.';
   if (/ENOTFOUND|ECONNREFUSED|ECONNRESET|ETIMEDOUT|время ожидания|network|fetch failed/i.test(raw)) return 'Не удалось связаться с сервером. Проверьте интернет и повторите попытку.';
+  if (/\bEIO\b|input\/output|ошибк[аи] ввода.?вывода|копирован/i.test(raw)) return 'Не удалось запустить VPN-компонент. Перезапустите приложение. Если ошибка повторится, проверьте, не заблокировал ли антивирус Xray.';
+  if (/ENOENT|xray\.exe|не найден/i.test(raw)) return 'VPN-компонент Xray не найден. Переустановите приложение и повторите попытку.';
+  if (/EACCES|EPERM|access denied|доступ запрещ/i.test(raw)) return 'Windows заблокировала запуск VPN-компонента. Разрешите Dadway VPN и Xray в антивирусе, затем повторите попытку.';
   return raw || 'Не удалось выполнить операцию. Повторите попытку позже.';
 }
 function selected() { return servers.find(server => server.id === selectedId) || servers[0]; }
