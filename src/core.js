@@ -10,13 +10,34 @@ const execFileAsync = promisify(execFile);
 const SUBSCRIPTION_URL = 'https://devel.dadway.ru/sub/zpp#dadway.ru';
 const SOCKS_PORT = 10808;
 const HTTP_PORT = 10809;
+const ACCESS_DENIED_STATUSES = new Set([401, 403, 404, 410]);
+
+class SubscriptionAccessError extends Error {
+  constructor(statusCode) {
+    const messages = {
+      403: 'Доступ к подписке запрещён',
+      404: 'Подписка отключена',
+      410: 'Срок действия подписки истёк'
+    };
+    super(messages[statusCode] || `Подписка недоступна (HTTP ${statusCode})`);
+    this.name = 'SubscriptionAccessError';
+    this.statusCode = statusCode;
+  }
+}
 
 function request(url, options = {}) {
   return new Promise((resolve, reject) => {
     const client = url.startsWith('https:') ? https : http;
     const req = client.get(url, { headers: { 'User-Agent': 'DadwayVPN/1.0 Windows', Accept: 'text/plain, */*' }, timeout: 20000, ...options }, res => {
-      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) return resolve(request(new URL(res.headers.location, url).href, options));
-      if (res.statusCode < 200 || res.statusCode >= 300) return reject(new Error(`HTTP ${res.statusCode}`));
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        res.resume(); return resolve(request(new URL(res.headers.location, url).href, options));
+      }
+      if (ACCESS_DENIED_STATUSES.has(res.statusCode)) {
+        res.resume(); return reject(new SubscriptionAccessError(res.statusCode));
+      }
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        res.resume(); const error = new Error(`HTTP ${res.statusCode}`); error.statusCode = res.statusCode; return reject(error);
+      }
       const chunks = [];
       res.on('data', c => chunks.push(c));
       res.on('end', () => resolve(Buffer.concat(chunks)));
@@ -209,4 +230,4 @@ class VpnCore {
   async externalIp() { const data = JSON.parse((await request('https://api.ipify.org?format=json')).toString()); return data.ip; }
 }
 
-module.exports = { SUBSCRIPTION_URL, request, decodeSubscription, parseServers, checkServers, buildConfig, VpnCore, SOCKS_PORT, HTTP_PORT };
+module.exports = { SUBSCRIPTION_URL, SubscriptionAccessError, request, decodeSubscription, parseServers, checkServers, buildConfig, VpnCore, SOCKS_PORT, HTTP_PORT };

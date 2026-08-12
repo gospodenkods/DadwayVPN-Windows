@@ -19,7 +19,13 @@ function applyTheme(theme) {
 function toggleTheme() { applyTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light'); }
 
 function render() {
-  const server = selected(); if (!server) return;
+  const server = selected();
+  if (!server) {
+    selectedId = null;
+    $('#flag').textContent = '⛔'; $('#serverName').textContent = 'Подписка недоступна';
+    $('#serverStatus').textContent = 'Серверы отсутствуют'; $('#serverStatus').className = 'danger';
+    renderList(); return;
+  }
   selectedId = server.id; $('#flag').textContent = flags[server.country] || flags.unknown; $('#serverName').textContent = server.name;
   $('#serverStatus').textContent = server.available === null ? '●  Проверка доступности…' : server.available ? `●  Доступен • ${server.latency} мс` : '●  Недоступен';
   $('#serverStatus').className = server.available ? 'success' : server.available === false ? 'danger' : 'warning'; renderList();
@@ -33,11 +39,15 @@ function renderList() {
     button.onclick = async () => { selectedId = server.id; await window.dadway.select(server.id); render(); $('#serverDialog').close(); };
     list.appendChild(button);
   });
-  $('#updated').textContent = `Обновлено только что • ${servers.length} серверов`;
+  $('#updated').textContent = servers.length ? `Обновлено только что • ${servers.length} серверов` : 'Подписка отключена или истекла';
 }
 async function refresh() {
   toast('Обновляем список серверов…'); $('#serverStatus').textContent = 'Проверка доступности…';
-  try { servers = await window.dadway.refresh(); render(); toast('Список серверов обновлён'); } catch (error) { toast(`Ошибка: ${error.message}`); }
+  try {
+    const result = await window.dadway.refresh(); servers = result.servers; render();
+    toast(result.fromCache ? 'Нет связи: показан сохранённый список' : 'Список серверов обновлён');
+    if (result.fromCache) $('#updated').textContent = 'Нет связи с сервером • сохранённый список';
+  } catch (error) { render(); toast(`Ошибка: ${error.message}`); }
 }
 function renderDisconnected(status = 'Защита выключена') {
   connected = false; clearInterval(timer); startedAt = 0; const button = $('#connect'); button.classList.remove('on'); button.querySelector('span').textContent = 'ПОДКЛЮЧИТЬСЯ';
@@ -63,5 +73,5 @@ $('#selected').onclick = () => $('#serverDialog').showModal(); $('#close').oncli
 $('#website').onclick = () => window.dadway.open('https://dadway.ru'); $('#telegram').onclick = () => window.dadway.open('https://t.me/gds_technical'); $('#donate').onclick = () => window.dadway.open(DONATE_URL);
 $('#logs').onclick = async () => { if (await window.dadway.saveLogs()) toast('Лог сохранён'); };
 $('#test').onclick = async () => { if (!connected) return toast('Сначала подключите VPN'); try { $('#ip').textContent = await window.dadway.ip(); toast('IP обновлён'); } catch (error) { toast(error.message); } };
-window.dadway.onEvent(event => { if (event.type === 'servers') { servers = event.payload; render(); } if (event.type === 'error') toast(event.payload); if (event.type === 'disconnected') { renderDisconnected('Соединение прервано'); toast('Xray завершил работу, настройки сети восстановлены'); } });
+window.dadway.onEvent(event => { if (event.type === 'servers') { servers = event.payload; render(); } if (event.type === 'error') toast(event.payload); if (event.type === 'subscription-revoked') { servers = []; render(); renderDisconnected(event.payload); toast(event.payload); } if (event.type === 'disconnected') { renderDisconnected('Соединение прервано'); toast('Xray завершил работу, настройки сети восстановлены'); } });
 window.dadway.init().then(data => { servers = data.servers; selectedId = data.settings.selectedId; $('#buildVersion').textContent = `Сборка: ${data.appVersion}`; $('#xrayVersion').textContent = `Xray: ${data.xrayVersion}`; render(); }).catch(error => toast(error.message));
