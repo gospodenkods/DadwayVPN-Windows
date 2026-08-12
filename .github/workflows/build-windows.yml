@@ -1,53 +1,58 @@
-name: Build Dadway VPN Windows v2.0.3
+name: Build Dadway VPN for Windows
 
 on:
-  workflow_dispatch:
   push:
-    branches: [ main ]
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   build:
-    runs-on: windows-2022
-
+    runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-dotnet@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
         with:
-          dotnet-version: '8.0.x'
+          version: 11
 
-      - name: Restore
-        run: dotnet restore DadwayVPN.Windows.sln
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
 
-      - name: Build
-        run: dotnet build DadwayVPN.Windows.sln -c Release --no-restore
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
-      - name: Publish portable
-        run: dotnet publish src/DadwayVPN.Windows/DadwayVPN.Windows.csproj -c Release -r win-x64 --self-contained true -o artifacts/portable
+      - name: Validate sources
+        run: pnpm run check
 
-      - name: Archive portable
-        shell: pwsh
-        run: Compress-Archive -Path artifacts/portable/* -DestinationPath artifacts/DadwayVPN-Windows-v2.0.3-Portable.zip -Force
-
-      - name: Build MSI
+      - name: Download Xray Core
         shell: pwsh
         run: |
-          $publishDir = "${{ github.workspace }}\artifacts\portable\"
-          dotnet build installer/DadwayVPN.Installer.wixproj -c Release -p:PublishDir="$publishDir"
+          $release = Invoke-RestMethod https://api.github.com/repos/XTLS/Xray-core/releases/latest
+          $asset = $release.assets | Where-Object name -eq 'Xray-windows-64.zip' | Select-Object -First 1
+          if (-not $asset) { throw 'Xray-windows-64.zip not found' }
+          Invoke-WebRequest $asset.browser_download_url -OutFile xray.zip
+          New-Item runtime -ItemType Directory -Force | Out-Null
+          Expand-Archive xray.zip runtime -Force
 
-      - name: Collect MSI
-        shell: pwsh
-        run: |
-          $msi = Get-ChildItem installer -Recurse -Filter *.msi | Select-Object -First 1
-          if (-not $msi) {
-            throw "MSI package was not created."
-          }
-          Copy-Item $msi.FullName artifacts/DadwayVPN-Windows-v2.0.3.msi -Force
+      - name: Build installer
+        run: pnpm run dist
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
         with:
-          name: DadwayVPN-Windows-v2.0.3
+          name: DadwayVPN-Windows-${{ github.sha }}
           path: |
-            artifacts/DadwayVPN-Windows-v2.0.3-Portable.zip
-            artifacts/DadwayVPN-Windows-v2.0.3.msi
+            release/DadwayVPN-Windows-*.exe
+            release/DadwayVPN-Windows-*.exe.blockmap
           if-no-files-found: error
