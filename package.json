@@ -8,8 +8,8 @@
   "scripts": {
     "start": "electron .",
     "check": "node --check src/main.js && node --check src/preload.js && node --check src/core.js && node --check src/renderer/app.js",
-    "dist": "electron-builder --win nsis",
-    "dist:portable": "electron-builder --win portable --config.artifactName=DadwayVPN-Windows-${version}-portable-${arch}.${ext}"
+    "dist": "electron-builder --win nsis --publish never",
+    "dist:portable": "electron-builder --win portable --publish never --config.artifactName=DadwayVPN-Windows-${version}-portable-${arch}.${ext}"
   },
   "devDependencies": {
     "electron": "^37.2.0",
