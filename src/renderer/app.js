@@ -3,7 +3,15 @@ const flags = { ru: '🇷🇺', de: '🇩🇪', us: '🇺🇸', nl: '🇳🇱', 
 const DONATE_URL = 'https://pay.cloudtips.ru/p/19a29f12';
 let servers = [], selectedId = null, connected = false, startedAt = 0, timer;
 
-function toast(message) { const element = $('#toast'); element.textContent = message; element.classList.add('show'); setTimeout(() => element.classList.remove('show'), 2600); }
+function toast(message, duration = 3600) { const element = $('#toast'); element.textContent = message; element.classList.add('show'); clearTimeout(toast.timer); toast.timer = setTimeout(() => element.classList.remove('show'), duration); }
+function friendlyError(error) {
+  const raw = String(error?.message || error || '').replace(/^Error invoking remote method '[^']+':\s*/i, '').replace(/^SubscriptionAccessError:\s*/i, '').trim();
+  if (/подписка отключена|HTTP\s*404/i.test(raw)) return 'Подписка отключена. Продлите подписку и нажмите «Обновить список серверов».';
+  if (/срок действия подписки ист[её]к|HTTP\s*410/i.test(raw)) return 'Срок действия подписки истёк. Продлите подписку и обновите список серверов.';
+  if (/доступ к подписке запрещ[её]н|HTTP\s*(401|403)/i.test(raw)) return 'Нет доступа к подписке. Проверьте её адрес или обратитесь в поддержку.';
+  if (/ENOTFOUND|ECONNREFUSED|ECONNRESET|ETIMEDOUT|время ожидания|network|fetch failed/i.test(raw)) return 'Не удалось связаться с сервером. Проверьте интернет и повторите попытку.';
+  return raw || 'Не удалось выполнить операцию. Повторите попытку позже.';
+}
 function selected() { return servers.find(server => server.id === selectedId) || servers[0]; }
 
 function applyTheme(theme) {
@@ -47,7 +55,7 @@ async function refresh() {
     const result = await window.dadway.refresh(); servers = result.servers; render();
     toast(result.fromCache ? 'Нет связи: показан сохранённый список' : 'Список серверов обновлён');
     if (result.fromCache) $('#updated').textContent = 'Нет связи с сервером • сохранённый список';
-  } catch (error) { render(); toast(`Ошибка: ${error.message}`); }
+  } catch (error) { render(); toast(friendlyError(error), 6000); }
 }
 function renderDisconnected(status = 'Защита выключена') {
   connected = false; clearInterval(timer); startedAt = 0; const button = $('#connect'); button.classList.remove('on'); button.querySelector('span').textContent = 'ПОДКЛЮЧИТЬСЯ';
@@ -63,7 +71,7 @@ async function toggle() {
       connected = true; startedAt = state.startedAt; button.classList.add('on'); button.querySelector('span').textContent = 'ОТКЛЮЧИТЬСЯ'; $('#status').textContent = 'Защита включена'; $('#status').className = 'success';
       timer = setInterval(updateTimer, 1000); window.dadway.ip().then(ip => $('#ip').textContent = ip).catch(() => {}); toast('VPN подключён');
     }
-  } catch (error) { renderDisconnected('Ошибка подключения'); toast(error.message); } finally { button.disabled = false; }
+  } catch (error) { renderDisconnected('Не удалось подключиться'); toast(friendlyError(error), 6000); } finally { button.disabled = false; }
 }
 function updateTimer() { const seconds = Math.floor((Date.now() - startedAt) / 1000); $('#timer').textContent = [Math.floor(seconds / 3600), Math.floor(seconds / 60) % 60, seconds % 60].map(value => String(value).padStart(2, '0')).join(':'); }
 
@@ -72,6 +80,6 @@ $('#themeToggle').onclick = toggleTheme; $('#settingsTheme').onclick = toggleThe
 $('#selected').onclick = () => $('#serverDialog').showModal(); $('#close').onclick = () => $('#serverDialog').close(); $('#settings').onclick = () => $('#settingsDialog').showModal(); $('.close-settings').onclick = () => $('#settingsDialog').close();
 $('#website').onclick = () => window.dadway.open('https://dadway.ru'); $('#telegram').onclick = () => window.dadway.open('https://t.me/gds_technical'); $('#donate').onclick = () => window.dadway.open(DONATE_URL);
 $('#logs').onclick = async () => { if (await window.dadway.saveLogs()) toast('Лог сохранён'); };
-$('#test').onclick = async () => { if (!connected) return toast('Сначала подключите VPN'); try { $('#ip').textContent = await window.dadway.ip(); toast('IP обновлён'); } catch (error) { toast(error.message); } };
-window.dadway.onEvent(event => { if (event.type === 'servers') { servers = event.payload; render(); } if (event.type === 'error') toast(event.payload); if (event.type === 'subscription-revoked') { servers = []; render(); renderDisconnected(event.payload); toast(event.payload); } if (event.type === 'disconnected') { renderDisconnected('Соединение прервано'); toast('Xray завершил работу, настройки сети восстановлены'); } });
-window.dadway.init().then(data => { servers = data.servers; selectedId = data.settings.selectedId; $('#buildVersion').textContent = `Сборка: ${data.appVersion}`; $('#xrayVersion').textContent = `Xray: ${data.xrayVersion}`; render(); }).catch(error => toast(error.message));
+$('#test').onclick = async () => { if (!connected) return toast('Сначала подключите VPN'); try { $('#ip').textContent = await window.dadway.ip(); toast('IP обновлён'); } catch (error) { toast(friendlyError(error), 6000); } };
+window.dadway.onEvent(event => { if (event.type === 'servers') { servers = event.payload; render(); } if (event.type === 'error') toast(friendlyError(event.payload), 6000); if (event.type === 'subscription-revoked') { servers = []; render(); renderDisconnected('Подписка отключена'); toast(friendlyError(event.payload), 6000); } if (event.type === 'disconnected') { renderDisconnected('Соединение прервано'); toast('VPN отключён. Настройки сети восстановлены.'); } });
+window.dadway.init().then(data => { servers = data.servers; selectedId = data.settings.selectedId; $('#buildVersion').textContent = `Сборка: ${data.appVersion}`; $('#xrayVersion').textContent = `Xray: ${data.xrayVersion}`; render(); }).catch(error => toast(friendlyError(error), 6000));
