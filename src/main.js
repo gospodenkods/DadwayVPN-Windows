@@ -1,7 +1,8 @@
 const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
-const { SUBSCRIPTION_URL, SubscriptionAccessError, request, decodeSubscription, parseServers, checkServers, VpnCore } = require('./core');
+const { SUBSCRIPTION_URL, SubscriptionAccessError, request, decodeSubscription, parseServers, checkServers, formatConnectionError, VpnCore } = require('./core');
 
 let win, core, servers = [], selectedId = null, subscriptionValidationTimer = null;
 const cacheFile = () => path.join(app.getPath('userData'), 'subscription-promo.txt');
@@ -84,16 +85,42 @@ app.whenReady().then(async () => {
   ipcMain.handle('refresh', () => refresh(false));
   ipcMain.handle('select', (_, id) => { selectedId = id; saveSettings({ ...loadSettings(), selectedId: id }); return true; });
   ipcMain.handle('connect', async (_, id) => {
-    const refreshed = await refresh(false, false);
-    const server = refreshed.servers.find(s => s.id === id) || refreshed.servers[0];
-    if (!server) throw new Error('Сервер не выбран');
-    selectedId = server.id; saveSettings({ ...loadSettings(), selectedId });
-    const state = await core.connect(server); startSubscriptionValidation(); return state;
+    try {
+      const refreshed = await refresh(false, false);
+      const server = refreshed.servers.find(s => s.id === id) || refreshed.servers[0];
+      if (!server) throw new Error('Сервер не выбран');
+      selectedId = server.id; saveSettings({ ...loadSettings(), selectedId });
+      const state = await core.connect(server); startSubscriptionValidation(); return { ok: true, state };
+    } catch (error) {
+      const message = formatConnectionError(error);
+      core.log(`Ошибка подключения [${error?.code || 'unknown'}]: ${message}`);
+      await core.disconnect().catch(() => {});
+      return { ok: false, error: message };
+    }
   });
   ipcMain.handle('disconnect', () => { stopSubscriptionValidation(); return core.disconnect(); });
   ipcMain.handle('ip', () => core.externalIp());
   ipcMain.handle('open', (_, url) => shell.openExternal(url));
-  ipcMain.handle('saveLogs', async () => { const result = await dialog.showSaveDialog(win, { defaultPath: `dadway-vpn-${Date.now()}.txt`, filters: [{ name: 'Текст', extensions: ['txt'] }] }); if (!result.canceled) fs.writeFileSync(result.filePath, core.logs.join('\n')); return !result.canceled; });
+  ipcMain.handle('saveLogs', async () => {
+    const version = app.getVersion();
+    const xrayVersion = await core.version().catch(() => 'неизвестна');
+    const result = await dialog.showSaveDialog(win, {
+      defaultPath: `dadway-vpn-windows-${version}-${Date.now()}.txt`,
+      filters: [{ name: 'Текст', extensions: ['txt'] }]
+    });
+    if (!result.canceled) {
+      const header = [
+        'Dadway VPN — журнал Windows-клиента',
+        `Версия приложения: ${version}`,
+        `Версия Xray: ${xrayVersion}`,
+        `Windows: ${os.release()} (${os.arch()})`,
+        `Время сохранения: ${new Date().toLocaleString('ru-RU')}`,
+        ''
+      ];
+      fs.writeFileSync(result.filePath, [...header, ...core.logs].join('\n'), 'utf8');
+    }
+    return !result.canceled;
+  });
 });
 app.on('before-quit', e => { stopSubscriptionValidation(); if (core?.proc) { e.preventDefault(); core.disconnect().finally(() => { core.proc = null; app.quit(); }); } });
 app.on('window-all-closed', () => app.quit());

@@ -48,6 +48,14 @@ jobs:
       - name: Build installer
         run: pnpm run dist
 
+      - name: Validate packaged Xray runtime
+        shell: pwsh
+        run: |
+          $xray = 'release/win-unpacked/resources/runtime/xray.exe'
+          if (-not (Test-Path -LiteralPath $xray)) { throw 'Packaged xray.exe not found' }
+          & $xray version
+          if ($LASTEXITCODE -ne 0) { throw "Packaged Xray exited with code $LASTEXITCODE" }
+
       - name: Upload installer
         uses: actions/upload-artifact@v4
         with:

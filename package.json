@@ -1,13 +1,13 @@
 {
   "name": "dadway-vpn-windows",
-  "version": "8.3.9",
+  "version": "8.3.10",
   "description": "Dadway VPN client for Windows",
   "main": "src/main.js",
   "author": "Dadway",
   "license": "MIT",
   "scripts": {
     "start": "electron .",
-    "check": "node --check src/main.js && node --check src/preload.js && node --check src/core.js && node --check src/renderer/app.js",
+    "check": "node --check src/main.js && node --check src/preload.js && node --check src/core.js && node --check src/renderer/app.js && node --test",
     "dist": "electron-builder --win nsis --publish never",
     "dist:portable": "electron-builder --win portable --publish never --config.artifactName=DadwayVPN-Windows-${version}-portable-${arch}.${ext}"
   },
@@ -20,7 +20,7 @@
     "productName": "Dadway VPN",
     "artifactName": "DadwayVPN-Windows-${version}-${arch}.${ext}",
     "directories": { "output": "release" },
-    "compression": "store",
+    "compression": "maximum",
     "files": ["src/**/*", "design-assets/**/*", "package.json"],
     "extraResources": [{ "from": "runtime", "to": "runtime", "filter": ["**/*"] }],
     "win": { "target": ["nsis"], "icon": "design-assets/launcher_icon_smooth-v4-source.png" },

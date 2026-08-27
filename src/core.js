@@ -185,34 +185,39 @@ async function restoreSystemProxy(snapshotFile) {
 class VpnCore {
   constructor(userData, resourcesPath, onEvent) { this.userData = userData; this.resourcesPath = resourcesPath; this.onEvent = onEvent; this.proc = null; this.startedAt = 0; this.logs = []; this.stopping = false; }
   log(message) { const line = `[${new Date().toLocaleString('ru-RU')}] ${message}`; this.logs.push(line); if (this.logs.length > 500) this.logs.shift(); this.onEvent?.('log', line); }
-  get xrayPath() { return path.join(this.userData, 'runtime', 'xray.exe'); }
+  get bundledXrayPath() { return path.join(this.resourcesPath, 'runtime', 'xray.exe'); }
+  get downloadedXrayPath() { return path.join(this.userData, 'runtime', 'xray.exe'); }
+  get xrayPath() { return fs.existsSync(this.bundledXrayPath) ? this.bundledXrayPath : this.downloadedXrayPath; }
+  get xrayDirectory() { return path.dirname(this.xrayPath); }
   get proxySnapshotPath() { return path.join(this.userData, 'proxy-state.json'); }
   get configPath() { return path.join(this.userData, 'config.json'); }
   async version() {
-    await this.ensureXray();
-    const { stdout } = await execFileAsync(this.xrayPath, ['version'], { windowsHide: true });
+    const executable = await this.ensureXray();
+    const { stdout } = await execFileAsync(executable, ['version'], { windowsHide: true, cwd: path.dirname(executable) });
     return stdout.match(/^Xray\s+([^\s]+)/m)?.[1] || 'неизвестна';
   }
   async recover() { await restoreSystemProxy(this.proxySnapshotPath).catch(error => this.log(`Не удалось восстановить системный прокси: ${error.message}`)); }
   async ensureXray() {
-    if (fs.existsSync(this.xrayPath)) return;
-    fs.mkdirSync(path.dirname(this.xrayPath), { recursive: true });
-    const bundled = path.join(this.resourcesPath, 'runtime');
-    if (fs.existsSync(path.join(bundled, 'xray.exe'))) {
-      fs.cpSync(bundled, path.dirname(this.xrayPath), { recursive: true });
-      this.log('Xray Core подготовлен'); return;
-    }
+    if (fs.existsSync(this.bundledXrayPath)) return this.bundledXrayPath;
+    if (fs.existsSync(this.downloadedXrayPath)) return this.downloadedXrayPath;
+    fs.mkdirSync(path.dirname(this.downloadedXrayPath), { recursive: true });
     this.log('Загрузка Xray Core…');
     const api = JSON.parse((await request('https://api.github.com/repos/XTLS/Xray-core/releases/latest', { headers: { 'User-Agent': 'DadwayVPN-Windows' } })).toString());
     const asset = api.assets.find(a => a.name === 'Xray-windows-64.zip'); if (!asset) throw new Error('Архив Xray для Windows не найден');
     const zip = path.join(this.userData, 'xray.zip'); fs.writeFileSync(zip, await request(asset.browser_download_url));
-    const ps = `Expand-Archive -LiteralPath '${zip.replaceAll("'", "''")}' -DestinationPath '${path.dirname(this.xrayPath).replaceAll("'", "''")}' -Force`;
-    await execFileAsync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps]); fs.unlinkSync(zip); this.log('Xray Core установлен');
+    const ps = `Expand-Archive -LiteralPath '${zip.replaceAll("'", "''")}' -DestinationPath '${path.dirname(this.downloadedXrayPath).replaceAll("'", "''")}' -Force`;
+    try {
+      await execFileAsync('powershell.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', ps], { windowsHide: true });
+    } finally {
+      if (fs.existsSync(zip)) fs.unlinkSync(zip);
+    }
+    if (!fs.existsSync(this.downloadedXrayPath)) throw new Error('После распаковки отсутствует xray.exe');
+    this.log('Xray Core установлен'); return this.downloadedXrayPath;
   }
   async connect(server) {
-    await this.disconnect(); await this.ensureXray();
+    await this.disconnect(); const executable = await this.ensureXray();
     fs.writeFileSync(this.configPath, JSON.stringify(buildConfig(server.link), null, 2));
-    this.proc = spawn(this.xrayPath, ['run', '-c', this.configPath], { windowsHide: true }); this.startedAt = Date.now(); this.stopping = false;
+    this.proc = spawn(executable, ['run', '-c', this.configPath], { windowsHide: true, cwd: path.dirname(executable) }); this.startedAt = Date.now(); this.stopping = false;
     this.proc.stdout.on('data', d => this.log(d.toString().trim())); this.proc.stderr.on('data', d => this.log(d.toString().trim()));
     this.proc.once('exit', code => {
       const unexpected = !this.stopping && this.startedAt > 0;
@@ -222,7 +227,11 @@ class VpnCore {
         restoreSystemProxy(this.proxySnapshotPath).finally(() => this.onEvent?.('disconnected', { reason: 'xray-exit', code }));
       }
     });
-    await new Promise((resolve, reject) => { const timer = setTimeout(resolve, 900); this.proc.once('exit', code => { clearTimeout(timer); reject(new Error(`Xray завершился с кодом ${code}`)); }); });
+    await new Promise((resolve, reject) => {
+      const timer = setTimeout(resolve, 900);
+      this.proc.once('error', error => { clearTimeout(timer); reject(error); });
+      this.proc.once('exit', code => { clearTimeout(timer); reject(new Error(`Xray завершился с кодом ${code}`)); });
+    });
     await enableSystemProxy(this.proxySnapshotPath); this.log(`Подключено: ${server.name}`); return { connected: true, startedAt: this.startedAt };
   }
   async disconnect() {
@@ -235,4 +244,17 @@ class VpnCore {
   async externalIp() { const data = JSON.parse((await request('https://api.ipify.org?format=json')).toString()); return data.ip; }
 }
 
-module.exports = { SUBSCRIPTION_URL, SubscriptionAccessError, request, decodeSubscription, parseServers, checkServers, buildConfig, VpnCore, SOCKS_PORT, HTTP_PORT };
+function formatConnectionError(error) {
+  const messages = {
+    EIO: 'Не удалось запустить Xray Core. Переустановите Dadway VPN поверх текущей версии или разрешите Xray в антивирусе.',
+    EACCES: 'Windows заблокировала запуск Xray Core. Разрешите приложение в антивирусе и повторите подключение.',
+    EPERM: 'Недостаточно прав для запуска Xray Core или изменения системного прокси.',
+    ENOENT: 'Файл Xray Core отсутствует. Переустановите Dadway VPN поверх текущей версии.'
+  };
+  if (messages[error?.code]) return messages[error.code];
+  const message = String(error?.message || '').trim();
+  if (!message || /[ÐÑÎÏ][\x80-\xBF]/.test(message)) return 'Не удалось подключить VPN. Подробности сохранены в журнале приложения.';
+  return message;
+}
+
+module.exports = { SUBSCRIPTION_URL, SubscriptionAccessError, request, decodeSubscription, parseServers, checkServers, buildConfig, formatConnectionError, VpnCore, SOCKS_PORT, HTTP_PORT };

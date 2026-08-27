@@ -3,7 +3,7 @@ const flags = { ru: '🇷🇺', de: '🇩🇪', us: '🇺🇸', nl: '🇳🇱', 
 const DONATE_URL = 'https://pay.cloudtips.ru/p/19a29f12';
 let servers = [], selectedId = null, connected = false, startedAt = 0, timer;
 
-function toast(message) { const element = $('#toast'); element.textContent = message; element.classList.add('show'); setTimeout(() => element.classList.remove('show'), 2600); }
+function toast(message, duration = 2600) { const element = $('#toast'); element.textContent = message; element.classList.add('show'); setTimeout(() => element.classList.remove('show'), duration); }
 function selected() { return servers.find(server => server.id === selectedId) || servers[0]; }
 
 function applyTheme(theme) {
@@ -63,7 +63,7 @@ async function toggle() {
       connected = true; startedAt = state.startedAt; button.classList.add('on'); button.querySelector('span').textContent = 'ОТКЛЮЧИТЬСЯ'; $('#status').textContent = 'Защита включена'; $('#status').className = 'success';
       timer = setInterval(updateTimer, 1000); window.dadway.ip().then(ip => $('#ip').textContent = ip).catch(() => {}); toast('VPN подключён');
     }
-  } catch (error) { renderDisconnected('Ошибка подключения'); toast(error.message); } finally { button.disabled = false; }
+  } catch (error) { renderDisconnected('Ошибка подключения'); toast(error.message, 5200); } finally { button.disabled = false; }
 }
 function updateTimer() { const seconds = Math.floor((Date.now() - startedAt) / 1000); $('#timer').textContent = [Math.floor(seconds / 3600), Math.floor(seconds / 60) % 60, seconds % 60].map(value => String(value).padStart(2, '0')).join(':'); }
 
