@@ -4,13 +4,16 @@ const path = require('node:path');
 const { SUBSCRIPTION_URL, SubscriptionAccessError, request, decodeSubscription, parseServers, checkServers, VpnCore } = require('./core');
 
 let win, core, servers = [], selectedId = null, subscriptionValidationTimer = null;
-const cacheFile = () => path.join(app.getPath('userData'), 'subscription-zpp.txt');
+const cacheFile = () => path.join(app.getPath('userData'), 'subscription-promo.txt');
+const legacyCacheFile = () => path.join(app.getPath('userData'), 'subscription-zpp.txt');
 const settingsFile = () => path.join(app.getPath('userData'), 'settings.json');
 function emit(type, payload) { win?.webContents.send('vpn:event', { type, payload }); }
 function loadSettings() { try { return JSON.parse(fs.readFileSync(settingsFile(), 'utf8')); } catch { return {}; } }
 function saveSettings(data) { fs.writeFileSync(settingsFile(), JSON.stringify(data, null, 2)); }
 
-function removeSubscriptionCache() { if (fs.existsSync(cacheFile())) fs.unlinkSync(cacheFile()); }
+function removeSubscriptionCache() {
+  for (const file of [cacheFile(), legacyCacheFile()]) if (fs.existsSync(file)) fs.unlinkSync(file);
+}
 function isTemporarySubscriptionError(error) {
   if (error instanceof SubscriptionAccessError) return false;
   if (error.statusCode) return [408, 425, 429].includes(error.statusCode) || error.statusCode >= 500;
@@ -66,6 +69,7 @@ async function validateSubscriptionAccess() {
 }
 
 app.whenReady().then(async () => {
+  if (fs.existsSync(legacyCacheFile())) fs.unlinkSync(legacyCacheFile());
   core = new VpnCore(app.getPath('userData'), process.resourcesPath, emit);
   await core.recover();
   createWindow();

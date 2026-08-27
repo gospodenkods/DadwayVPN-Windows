@@ -7,7 +7,7 @@ const { spawn, execFile } = require('node:child_process');
 const { promisify } = require('node:util');
 const execFileAsync = promisify(execFile);
 
-const SUBSCRIPTION_URL = 'https://devel.dadway.ru/sub/zpp#dadway.ru';
+const SUBSCRIPTION_URL = 'https://devel.dadway.ru/sub/promo#https%3A%2F%2Fdadway.ru';
 const SOCKS_PORT = 10808;
 const HTTP_PORT = 10809;
 const ACCESS_DENIED_STATUSES = new Set([401, 403, 404, 410]);
@@ -28,7 +28,12 @@ class SubscriptionAccessError extends Error {
 function request(url, options = {}) {
   return new Promise((resolve, reject) => {
     const client = url.startsWith('https:') ? https : http;
-    const req = client.get(url, { headers: { 'User-Agent': 'DadwayVPN/1.0 Windows', Accept: 'text/plain, */*' }, timeout: 20000, ...options }, res => {
+    const req = client.get(url, { headers: {
+      'User-Agent': 'DadwayVPN/1.1 Windows',
+      Accept: 'text/plain, */*',
+      'Cache-Control': 'no-cache, no-store',
+      Pragma: 'no-cache'
+    }, timeout: 20000, ...options }, res => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         res.resume(); return resolve(request(new URL(res.headers.location, url).href, options));
       }
