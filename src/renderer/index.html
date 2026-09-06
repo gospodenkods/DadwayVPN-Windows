@@ -31,7 +31,7 @@
   <section class="metrics">
     <div><small>IP</small><b id="ip">—</b></div>
     <div><small>Пинг</small><b id="ping">—</b></div>
-    <div><small>Прокси</small><b>10809</b></div>
+    <div><small id="modeLabel">Прокси</small><b id="traffic">10809</b></div>
   </section>
 
   <nav>
@@ -52,10 +52,14 @@
 
 <dialog id="settingsDialog">
   <div class="dialog-head"><b>Настройки</b><button class="close-settings">×</button></div>
-  <div class="setting-row"><span><b>Светлая тема</b><small>Изменить оформление приложения</small></span><button id="settingsTheme" class="switch" role="switch" aria-checked="false"><span></span></button></div>
+  <label class="setting-field"><b>Тема</b><select id="themeSelect"><option value="system">Как в Windows</option><option value="dark">Тёмная</option><option value="light">Светлая</option></select></label>
+  <label class="setting-field"><b>Режим подключения</b><select id="modeSelect"><option value="proxy">Локальный прокси</option><option value="tun">TUN — весь трафик</option></select><small>TUN требует запуска приложения от имени администратора.</small></label>
+  <section class="subscriptions"><div class="subscription-title"><b>Подписки</b><button id="addSubscription">＋ Добавить</button></div><div id="subscriptionList"></div></section>
   <p>HTTP-прокси: <b>127.0.0.1:10809</b></p><p>SOCKS5: <b>127.0.0.1:10808</b></p>
-  <p class="muted">Dadway VPN автоматически включает системный прокси Windows при подключении.</p>
+  <p class="muted">Домены .ru, .by и .su, а также локальные сети работают напрямую.</p>
 </dialog>
+
+<dialog id="addSubscriptionDialog"><div class="dialog-head"><b>Добавить подписку</b><button class="close-add">×</button></div><label class="setting-field"><b>HTTPS-ссылка</b><input id="subscriptionUrl" type="url" placeholder="https://example.com/sub/…"></label><button id="saveSubscription" class="wide">ДОБАВИТЬ</button></dialog>
 
 <div id="toast"></div><script src="app.js"></script>
 </body></html>

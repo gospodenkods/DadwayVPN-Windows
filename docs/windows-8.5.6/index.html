@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow,noarchive,nosnippet,noimageindex">
+  <meta name="referrer" content="no-referrer">
+  <title>Dadway VPN для Windows 8.5.6 — инструкция</title>
+  <style>
+    :root{color-scheme:light dark;--bg:#f3f5f8;--card:#fff;--text:#18212b;--muted:#687581;--line:#dfe4e8;--yellow:#e3a600;--red:#ef3340;--soft:#fff8df;--shadow:0 18px 60px #24303b18}
+    @media(prefers-color-scheme:dark){:root{--bg:#080e13;--card:#111a21;--text:#f6f8fa;--muted:#9aa5ae;--line:#303b43;--yellow:#ffc400;--red:#ff4652;--soft:#28240f;--shadow:0 20px 70px #0008}}
+    *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top,#ffc40018,transparent 30rem),var(--bg);color:var(--text);font:16px/1.65 "Segoe UI",system-ui,sans-serif}.page{width:min(900px,calc(100% - 28px));margin:auto;padding:30px 0 64px}.brand{display:flex;align-items:center;gap:12px;margin-bottom:20px}.mark{display:grid;place-items:center;width:48px;height:48px;border-radius:50%;background:#111a21;color:var(--yellow);border:2px solid var(--yellow);font-weight:900}.brand b{font-size:1.2rem;color:var(--yellow)}.brand i{color:var(--red);font-style:normal}.brand small{display:block;color:var(--muted)}article{padding:clamp(24px,5vw,56px);border:1px solid var(--line);border-radius:28px;background:var(--card);box-shadow:var(--shadow)}h1,h2{line-height:1.2;letter-spacing:-.025em}h1{margin:0 0 15px;font-size:clamp(2rem,5vw,3rem)}h2{margin:42px 0 14px;font-size:1.5rem}p,ol,ul{margin:0 0 17px}li+li{margin-top:7px}a{color:var(--yellow);text-underline-offset:3px}.download{display:inline-flex;align-items:center;gap:9px;margin:10px 0 22px;padding:13px 20px;border-radius:999px;background:linear-gradient(120deg,var(--red),#ff7600,var(--yellow));color:#fff;text-decoration:none;font-weight:800;box-shadow:0 10px 28px #ff5b3445}.note{padding:16px 18px;border-left:4px solid var(--yellow);border-radius:0 16px 16px 0;background:var(--soft)}code{padding:.15em .4em;border-radius:6px;background:var(--soft);color:var(--yellow);font-weight:700}.mode{display:grid;grid-template-columns:1fr 1fr;gap:12px}.mode div{padding:16px;border:1px solid var(--line);border-radius:18px}.mode b{display:block;margin-bottom:5px}.muted,footer{color:var(--muted)}footer{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;margin-top:18px;font-size:.82rem}@media(max-width:620px){.mode{grid-template-columns:1fr}article{border-radius:20px}ol,ul{padding-left:1.35rem}}
+  </style>
+</head>
+<body><main class="page">
+  <header class="brand"><span class="mark">D</span><span><b>DADWAY <i>VPN</i></b><small>Официальная инструкция для Windows</small></span></header>
+  <article>
+    <h1>Dadway VPN 8.5.6 для Windows</h1>
+    <p>Программа подключает компьютер к серверам Dadway через Xray Core. Доступны локальный прокси и системный режим TUN.</p>
+    <a class="download" href="../downloads/DadwayVPN-Windows-8.5.6-x64.exe">↓ Скачать установщик для Windows x64</a>
+    <p class="muted">Поддерживаются 64-разрядные Windows 10 и Windows 11. Размер файла — около 107 МБ.</p>
+
+    <h2>1. Установка</h2>
+    <ol><li>Скачайте файл <code>DadwayVPN-Windows-8.5.6-x64.exe</code>.</li><li>Запустите установщик и выберите каталог установки.</li><li>Если Windows покажет предупреждение SmartScreen, проверьте имя файла и контрольную сумму, затем выберите «Подробнее» → «Выполнить в любом случае».</li><li>Запустите Dadway VPN из меню «Пуск» или с рабочего стола.</li></ol>
+    <p class="note"><strong>Для TUN:</strong> нажмите правой кнопкой мыши по ярлыку Dadway VPN и выберите «Запуск от имени администратора». Локальный прокси работает без повышения прав.</p>
+
+    <h2>2. Выбор режима</h2>
+    <p>Откройте <strong>Настройки</strong> и выберите «Режим подключения».</p>
+    <div class="mode"><div><b>Локальный прокси</b>Включает системный HTTP/HTTPS-прокси Windows. Подходит для браузеров и программ, использующих настройки прокси системы.</div><div><b>TUN — весь трафик</b>Создаёт виртуальный сетевой адаптер и направляет через VPN системный TCP/UDP-трафик. Требует прав администратора.</div></div>
+    <p>В обоих режимах локальная сеть и сайты в зонах <code>.ru</code>, <code>.by</code> и <code>.su</code> идут напрямую, в обход VPN.</p>
+
+    <h2>3. Подписки</h2>
+    <ol><li>Откройте <strong>Настройки → Подписки</strong>.</li><li>Нажмите <strong>Добавить</strong>.</li><li>Вставьте полную ссылку, начинающуюся с <code>https://</code>, и нажмите <strong>Добавить</strong>.</li><li>Переключатель включает или отключает источник. Кнопка × удаляет подписку и её локальный кэш.</li></ol>
+    <p>Можно добавить несколько подписок. Серверы всех включённых источников объединяются в общем списке. При временной сетевой ошибке программа использует сохранённый список; отключённая или истёкшая подписка из кэша удаляется.</p>
+
+    <h2>4. Подключение</h2>
+    <ol><li>Нажмите карточку <strong>Выбранный сервер</strong>.</li><li>Выберите доступный сервер. Рядом отображаются источник и задержка.</li><li>Нажмите большую круглую кнопку <strong>Подключиться</strong>.</li><li>Дождитесь зелёной надписи «Защита включена».</li></ol>
+    <p>Для завершения соединения нажмите ту же кнопку ещё раз. В режиме прокси программа восстановит прежние системные параметры Windows.</p>
+
+    <h2>5. Проверка и статистика</h2>
+    <ul><li><strong>Проверить IP</strong> показывает внешний IP, задержку и приблизительную скорость.</li><li>Карточка справа отображает режим либо объём принятого и отправленного трафика.</li><li>Кнопка <strong>Обновить список серверов</strong> повторно загружает активные подписки.</li></ul>
+
+    <h2>6. Если подключение не работает</h2>
+    <ol><li>Обновите список и выберите другой доступный сервер.</li><li>Для TUN убедитесь, что программа запущена от имени администратора.</li><li>Разрешите <code>Dadway VPN.exe</code>, <code>xray.exe</code> и <code>wintun.dll</code> в антивирусе.</li><li>Откройте <strong>Логи</strong>, сохраните диагностический файл и отправьте его поддержке вместе со временем ошибки.</li></ol>
+    <p>Журнал скрывает UUID, пароли, ключи REALITY и адреса подписок.</p>
+
+    <h2>7. Проверка файла</h2>
+    <p>SHA-256 установщика:</p><p><code>33AF13E18DE38A81F30775AE35D523EF13CCC03FD568FD2D094D6FCA8BD2A785</code></p>
+    <p>В PowerShell: <code>Get-FileHash .\DadwayVPN-Windows-8.5.6-x64.exe -Algorithm SHA256</code></p>
+
+    <h2>Поддержка</h2>
+    <p>Telegram: <a href="https://t.me/gds_technical">@gds_technical</a><br>Помочь проекту: <a href="https://pay.cloudtips.ru/p/19a29f12">CloudTips</a></p>
+  </article>
+  <footer><span>Версия инструкции: 8.5.6</span><span>Обновлено: 6 сентября 2026 г.</span></footer>
+</main></body></html>

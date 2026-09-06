@@ -1,77 +1,28 @@
 const $ = selector => document.querySelector(selector);
-const flags = { ru: '🇷🇺', de: '🇩🇪', us: '🇺🇸', nl: '🇳🇱', unknown: '🌐' };
+const flags = { ru: '🇷🇺', de: '🇩🇪', us: '🇺🇸', nl: '🇳🇱', gb: '🇬🇧', unknown: '🌐' };
 const DONATE_URL = 'https://pay.cloudtips.ru/p/19a29f12';
-let servers = [], selectedId = null, connected = false, startedAt = 0, timer;
+let servers = [], subscriptions = [], selectedId = null, connected = false, startedAt = 0, timer, connectionMode = 'proxy', theme = 'system';
+function toast(message, duration = 4000) { const e = $('#toast'); e.textContent = message; e.classList.add('show'); clearTimeout(toast.timer); toast.timer = setTimeout(() => e.classList.remove('show'), duration); }
+function friendlyError(error) { const raw = String(error?.message || error || '').replace(/^Error invoking remote method '[^']+':\s*/i, '').replace(/^SubscriptionAccessError:\s*/i, '').trim(); if (/TUN_ADMIN_REQUIRED|режима TUN.*администратора/i.test(raw)) return 'Для режима TUN закройте приложение и запустите Dadway VPN от имени администратора.'; if (/подписка отключена|HTTP\s*404/i.test(raw)) return 'Подписка отключена. Продлите её и обновите список серверов.'; if (/срок действия.*ист[её]к|HTTP\s*410/i.test(raw)) return 'Срок действия подписки истёк. Продлите её и обновите список.'; if (/доступ к подписке|HTTP\s*(401|403)/i.test(raw)) return 'Нет доступа к подписке. Проверьте ссылку или обратитесь в поддержку.'; if (/ENOTFOUND|ECONNREFUSED|ECONNRESET|ETIMEDOUT|время ожидания|network|fetch failed/i.test(raw)) return 'Не удалось связаться с сервером. Проверьте интернет и повторите попытку.'; if (/wintun\.dll/i.test(raw)) return 'Компонент TUN не найден. Переустановите Dadway VPN.'; if (/EIO|input\/output|ошибк[аи] ввода.?вывода/i.test(raw)) return 'Не удалось запустить VPN-компонент. Перезапустите приложение и проверьте антивирус.'; if (/ENOENT|xray\.exe|не найден/i.test(raw)) return 'Компонент Xray не найден. Переустановите приложение.'; if (/EACCES|EPERM|access denied|доступ запрещ/i.test(raw)) return 'Windows заблокировала VPN-компонент. Разрешите Dadway VPN и Xray в антивирусе.'; return raw || 'Не удалось выполнить операцию.'; }
+function effectiveTheme() { return theme === 'system' ? (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark') : theme; }
+function applyTheme(value, persist = true) { theme = ['system', 'dark', 'light'].includes(value) ? value : 'system'; document.documentElement.dataset.theme = effectiveTheme(); $('#themeSelect').value = theme; const light = effectiveTheme() === 'light'; $('#themeToggle span').textContent = light ? '☾' : '☀'; if (persist) window.dadway.settings({ theme }); }
+matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => { if (theme === 'system') applyTheme('system', false); });
+function selected() { return servers.find(s => s.id === selectedId) || servers[0]; }
+function render() { const server = selected(); if (!server) { selectedId = null; $('#flag').textContent = '⛔'; $('#serverName').textContent = subscriptions.some(s => s.enabled) ? 'Серверы недоступны' : 'Добавьте подписку'; $('#serverStatus').textContent = subscriptions.some(s => s.enabled) ? 'Обновите список серверов' : 'Откройте настройки'; $('#serverStatus').className = 'danger'; return renderList(); } selectedId = server.id; $('#flag').textContent = flags[server.country] || flags.unknown; $('#serverName').textContent = server.name; $('#serverStatus').textContent = server.available === null ? '● Проверка доступности…' : server.available ? `● Доступен • ${server.latency} мс` : '● Недоступен'; $('#serverStatus').className = server.available ? 'success' : server.available === false ? 'danger' : 'warning'; renderList(); }
+function renderList() { const list = $('#serverList'); list.innerHTML = ''; servers.forEach(server => { const b = document.createElement('button'); b.className = `server-item ${server.id === selectedId ? 'selected' : ''}`; b.disabled = server.available === false; b.innerHTML = `<span class="country">${flags[server.country] || flags.unknown}</span><span><b></b><small></small></span><span class="latency">${server.latency ? `${server.latency} мс` : ''}</span>`; b.querySelector('b').textContent = server.name; b.querySelector('small').textContent = `${server.available ? '● Доступен' : server.available === null ? 'Проверка…' : '● Недоступен'}${server.subscriptionTitle ? ` • ${server.subscriptionTitle}` : ''}`; b.onclick = async () => { selectedId = server.id; await window.dadway.select(server.id); render(); $('#serverDialog').close(); }; list.appendChild(b); }); $('#updated').textContent = servers.length ? `${servers.length} серверов` : 'Нет серверов'; }
+function shortUrl(value) { try { const u = new URL(value); return `${u.hostname}${u.pathname.length > 22 ? `${u.pathname.slice(0, 18)}…` : u.pathname}`; } catch { return value; } }
+function renderSubscriptions() { const list = $('#subscriptionList'); list.innerHTML = ''; subscriptions.forEach(s => { const row = document.createElement('div'); row.className = 'subscription-row'; row.innerHTML = '<button class="switch" role="switch"><span></span></button><span class="subscription-info"><b></b><small></small></span><button class="remove-subscription" title="Удалить">×</button>'; const toggle = row.querySelector('.switch'); toggle.setAttribute('aria-checked', String(s.enabled)); row.querySelector('.subscription-info b').textContent = shortUrl(s.url); row.querySelector('.subscription-info small').textContent = s.enabled ? 'Включена' : 'Отключена'; toggle.onclick = async () => { subscriptions = await window.dadway.toggleSubscription(s.id, !s.enabled); renderSubscriptions(); await refresh(); }; row.querySelector('.remove-subscription').onclick = async () => { subscriptions = await window.dadway.removeSubscription(s.id); renderSubscriptions(); await refresh(); }; list.appendChild(row); }); if (!subscriptions.length) list.innerHTML = '<p class="muted">Добавьте HTTPS-ссылку подписки</p>'; }
+async function refresh() { toast('Обновляем список серверов…'); try { const result = await window.dadway.refresh(); servers = result.servers; render(); toast(result.fromCache ? 'Нет связи: показан сохранённый список' : result.errors?.length ? `Обновлено, ошибок подписок: ${result.errors.length}` : 'Список серверов обновлён'); } catch (e) { servers = []; render(); toast(friendlyError(e), 6500); } }
+function renderDisconnected(status = 'Защита выключена') { connected = false; clearInterval(timer); startedAt = 0; $('#connect').classList.remove('on'); $('#connect span').textContent = 'ПОДКЛЮЧИТЬСЯ'; $('#status').textContent = status; $('#status').className = 'danger'; $('#timer').textContent = '00:00:00'; $('#ip').textContent = $('#ping').textContent = '—'; $('#traffic').textContent = connectionMode === 'tun' ? 'TUN' : '10809'; }
+async function toggle() { const server = selected(); if (!server) return toast('Добавьте активную подписку и обновите серверы'); const button = $('#connect'); button.disabled = true; try { if (connected) { await window.dadway.disconnect(); renderDisconnected(); } else { if (server.available === false) return toast('Выбранный сервер недоступен'); $('#status').textContent = 'Подключение…'; $('#status').className = 'warning'; const state = await window.dadway.connect(server.id, connectionMode); connected = true; startedAt = state.startedAt; button.classList.add('on'); button.querySelector('span').textContent = 'ОТКЛЮЧИТЬСЯ'; $('#status').textContent = connectionMode === 'tun' ? 'Защита включена • TUN' : 'Защита включена • Прокси'; $('#status').className = 'success'; timer = setInterval(updateTimer, 1000); window.dadway.test().then(showTest).catch(() => {}); toast('VPN подключён'); } } catch (e) { renderDisconnected('Не удалось подключиться'); toast(friendlyError(e), 7000); } finally { button.disabled = false; } }
+function updateTimer() { const s = Math.floor((Date.now() - startedAt) / 1000); $('#timer').textContent = [Math.floor(s / 3600), Math.floor(s / 60) % 60, s % 60].map(v => String(v).padStart(2, '0')).join(':'); }
+function bytes(value) { if (value < 1024) return `${value} Б`; if (value < 1048576) return `${(value / 1024).toFixed(1)} КБ`; return `${(value / 1048576).toFixed(1)} МБ`; }
+function speed(value) { return value >= 1048576 ? `${(value / 1048576).toFixed(1)} МБ/с` : `${Math.round(value / 1024)} КБ/с`; }
+function showTest(v) { $('#ip').textContent = v.ip; $('#ping').textContent = `${v.pingMs} мс`; toast(`Проверка завершена • ${speed(v.bytesPerSecond)}`); }
 
-function toast(message) { const element = $('#toast'); element.textContent = message; element.classList.add('show'); setTimeout(() => element.classList.remove('show'), 2600); }
-function selected() { return servers.find(server => server.id === selectedId) || servers[0]; }
-
-function applyTheme(theme) {
-  const value = theme === 'light' ? 'light' : 'dark';
-  document.documentElement.dataset.theme = value;
-  localStorage.setItem('dadway-theme', value);
-  const light = value === 'light';
-  $('#themeToggle span').textContent = light ? '☾' : '☀';
-  $('#themeToggle').title = light ? 'Включить тёмную тему' : 'Включить светлую тему';
-  $('#themeToggle').setAttribute('aria-label', $('#themeToggle').title);
-  $('#settingsTheme').setAttribute('aria-checked', String(light));
-}
-function toggleTheme() { applyTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light'); }
-
-function render() {
-  const server = selected();
-  if (!server) {
-    selectedId = null;
-    $('#flag').textContent = '⛔'; $('#serverName').textContent = 'Подписка недоступна';
-    $('#serverStatus').textContent = 'Серверы отсутствуют'; $('#serverStatus').className = 'danger';
-    renderList(); return;
-  }
-  selectedId = server.id; $('#flag').textContent = flags[server.country] || flags.unknown; $('#serverName').textContent = server.name;
-  $('#serverStatus').textContent = server.available === null ? '●  Проверка доступности…' : server.available ? `●  Доступен • ${server.latency} мс` : '●  Недоступен';
-  $('#serverStatus').className = server.available ? 'success' : server.available === false ? 'danger' : 'warning'; renderList();
-}
-function renderList() {
-  const list = $('#serverList'); list.innerHTML = '';
-  servers.forEach(server => {
-    const button = document.createElement('button'); button.className = `server-item ${server.id === selectedId ? 'selected' : ''}`; button.disabled = server.available === false;
-    button.innerHTML = `<span class="country">${flags[server.country] || flags.unknown}</span><span><b></b><small>${server.available === null ? 'Проверка…' : server.available ? '● Доступен' : '● Недоступен'}</small></span><span class="latency">${server.latency ? `${server.latency} мс` : ''}</span>`;
-    button.querySelector('b').textContent = server.name;
-    button.onclick = async () => { selectedId = server.id; await window.dadway.select(server.id); render(); $('#serverDialog').close(); };
-    list.appendChild(button);
-  });
-  $('#updated').textContent = servers.length ? `Обновлено только что • ${servers.length} серверов` : 'Подписка отключена или истекла';
-}
-async function refresh() {
-  toast('Обновляем список серверов…'); $('#serverStatus').textContent = 'Проверка доступности…';
-  try {
-    const result = await window.dadway.refresh(); servers = result.servers; render();
-    toast(result.fromCache ? 'Нет связи: показан сохранённый список' : 'Список серверов обновлён');
-    if (result.fromCache) $('#updated').textContent = 'Нет связи с сервером • сохранённый список';
-  } catch (error) { render(); toast(`Ошибка: ${error.message}`); }
-}
-function renderDisconnected(status = 'Защита выключена') {
-  connected = false; clearInterval(timer); startedAt = 0; const button = $('#connect'); button.classList.remove('on'); button.querySelector('span').textContent = 'ПОДКЛЮЧИТЬСЯ';
-  $('#status').textContent = status; $('#status').className = 'danger'; $('#timer').textContent = '00:00:00'; $('#ip').textContent = '—';
-}
-async function toggle() {
-  const server = selected(); if (!server) return toast('Дождитесь загрузки серверов'); const button = $('#connect'); button.disabled = true;
-  try {
-    if (connected) { await window.dadway.disconnect(); renderDisconnected(); }
-    else {
-      if (server.available === false) return toast('Выбранный сервер недоступен');
-      $('#status').textContent = 'Подключение…'; $('#status').className = 'warning'; const state = await window.dadway.connect(server.id);
-      connected = true; startedAt = state.startedAt; button.classList.add('on'); button.querySelector('span').textContent = 'ОТКЛЮЧИТЬСЯ'; $('#status').textContent = 'Защита включена'; $('#status').className = 'success';
-      timer = setInterval(updateTimer, 1000); window.dadway.ip().then(ip => $('#ip').textContent = ip).catch(() => {}); toast('VPN подключён');
-    }
-  } catch (error) { renderDisconnected('Ошибка подключения'); toast(error.message); } finally { button.disabled = false; }
-}
-function updateTimer() { const seconds = Math.floor((Date.now() - startedAt) / 1000); $('#timer').textContent = [Math.floor(seconds / 3600), Math.floor(seconds / 60) % 60, seconds % 60].map(value => String(value).padStart(2, '0')).join(':'); }
-
-applyTheme(localStorage.getItem('dadway-theme') || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'));
-$('#themeToggle').onclick = toggleTheme; $('#settingsTheme').onclick = toggleTheme; $('#connect').onclick = toggle; $('#refresh').onclick = refresh; $('#update').onclick = refresh;
-$('#selected').onclick = () => $('#serverDialog').showModal(); $('#close').onclick = () => $('#serverDialog').close(); $('#settings').onclick = () => $('#settingsDialog').showModal(); $('.close-settings').onclick = () => $('#settingsDialog').close();
-$('#website').onclick = () => window.dadway.open('https://dadway.ru'); $('#telegram').onclick = () => window.dadway.open('https://t.me/gds_technical'); $('#donate').onclick = () => window.dadway.open(DONATE_URL);
-$('#logs').onclick = async () => { if (await window.dadway.saveLogs()) toast('Лог сохранён'); };
-$('#test').onclick = async () => { if (!connected) return toast('Сначала подключите VPN'); try { $('#ip').textContent = await window.dadway.ip(); toast('IP обновлён'); } catch (error) { toast(error.message); } };
-window.dadway.onEvent(event => { if (event.type === 'servers') { servers = event.payload; render(); } if (event.type === 'error') toast(event.payload); if (event.type === 'subscription-revoked') { servers = []; render(); renderDisconnected(event.payload); toast(event.payload); } if (event.type === 'disconnected') { renderDisconnected('Соединение прервано'); toast('Xray завершил работу, настройки сети восстановлены'); } });
-window.dadway.init().then(data => { servers = data.servers; selectedId = data.settings.selectedId; $('#buildVersion').textContent = `Сборка: ${data.appVersion}`; $('#xrayVersion').textContent = `Xray: ${data.xrayVersion}`; render(); }).catch(error => toast(error.message));
+$('#themeToggle').onclick = () => applyTheme(effectiveTheme() === 'light' ? 'dark' : 'light'); $('#themeSelect').onchange = e => applyTheme(e.target.value); $('#modeSelect').onchange = e => { connectionMode = e.target.value; window.dadway.settings({ connectionMode }); $('#modeLabel').textContent = connectionMode === 'tun' ? 'Режим' : 'Прокси'; $('#traffic').textContent = connectionMode === 'tun' ? 'TUN' : '10809'; };
+$('#connect').onclick = toggle; $('#refresh').onclick = $('#update').onclick = refresh; $('#selected').onclick = () => $('#serverDialog').showModal(); $('#close').onclick = () => $('#serverDialog').close(); $('#settings').onclick = () => $('#settingsDialog').showModal(); $('.close-settings').onclick = () => $('#settingsDialog').close(); $('#addSubscription').onclick = () => $('#addSubscriptionDialog').showModal(); $('.close-add').onclick = () => $('#addSubscriptionDialog').close();
+$('#saveSubscription').onclick = async () => { try { subscriptions = await window.dadway.addSubscription($('#subscriptionUrl').value); $('#subscriptionUrl').value = ''; renderSubscriptions(); $('#addSubscriptionDialog').close(); await refresh(); } catch (e) { toast(friendlyError(e), 6000); } };
+$('#website').onclick = () => window.dadway.open('https://dadway.ru'); $('#telegram').onclick = () => window.dadway.open('https://t.me/gds_technical'); $('#donate').onclick = () => window.dadway.open(DONATE_URL); $('#logs').onclick = async () => { if (await window.dadway.saveLogs()) toast('Диагностический лог сохранён'); }; $('#test').onclick = async () => { if (!connected) return toast('Сначала подключите VPN'); try { showTest(await window.dadway.test()); } catch (e) { toast(friendlyError(e), 6000); } };
+window.dadway.onEvent(event => { if (event.type === 'servers') { servers = event.payload; render(); } if (event.type === 'metrics' && connected) $('#traffic').textContent = `↓${bytes(event.payload.down)} ↑${bytes(event.payload.up)}`; if (event.type === 'error') toast(friendlyError(event.payload), 6000); if (event.type === 'subscription-revoked') { renderDisconnected('Подписка отключена'); toast(friendlyError(event.payload), 6000); refresh(); } if (event.type === 'disconnected') { renderDisconnected('Соединение прервано'); toast('VPN отключён. Настройки сети восстановлены.'); } });
+window.dadway.init().then(data => { servers = data.servers; subscriptions = data.subscriptions; selectedId = data.settings.selectedId; connectionMode = data.settings.connectionMode === 'tun' ? 'tun' : 'proxy'; applyTheme(data.settings.theme || 'system', false); $('#modeSelect').value = connectionMode; $('#modeLabel').textContent = connectionMode === 'tun' ? 'Режим' : 'Прокси'; $('#traffic').textContent = connectionMode === 'tun' ? 'TUN' : '10809'; $('#buildVersion').textContent = `Сборка: ${data.appVersion}`; $('#xrayVersion').textContent = `Xray: ${data.xrayVersion}`; renderSubscriptions(); render(); }).catch(e => toast(friendlyError(e), 6000));
