@@ -5,6 +5,7 @@ let servers = [], selectedId = null, connected = false, startedAt = 0, timer;
 
 function toast(message, duration = 2600) { const element = $('#toast'); element.textContent = message; element.classList.add('show'); setTimeout(() => element.classList.remove('show'), duration); }
 function selected() { return servers.find(server => server.id === selectedId) || servers[0]; }
+function renderPing(value) { $('#ping').textContent = Number.isFinite(value) ? `${Math.round(value)} мс` : '—'; }
 
 function applyTheme(theme) {
   const value = theme === 'light' ? 'light' : 'dark';
@@ -51,7 +52,7 @@ async function refresh() {
 }
 function renderDisconnected(status = 'Защита выключена') {
   connected = false; clearInterval(timer); startedAt = 0; const button = $('#connect'); button.classList.remove('on'); button.querySelector('span').textContent = 'ПОДКЛЮЧИТЬСЯ';
-  $('#status').textContent = status; $('#status').className = 'danger'; $('#timer').textContent = '00:00:00'; $('#ip').textContent = '—';
+  $('#status').textContent = status; $('#status').className = 'danger'; $('#timer').textContent = '00:00:00'; $('#ip').textContent = '—'; renderPing(null);
 }
 async function toggle() {
   const server = selected(); if (!server) return toast('Дождитесь загрузки серверов'); const button = $('#connect'); button.disabled = true;
@@ -61,7 +62,7 @@ async function toggle() {
       if (server.available === false) return toast('Выбранный сервер недоступен');
       $('#status').textContent = 'Подключение…'; $('#status').className = 'warning'; const state = await window.dadway.connect(server.id);
       connected = true; startedAt = state.startedAt; button.classList.add('on'); button.querySelector('span').textContent = 'ОТКЛЮЧИТЬСЯ'; $('#status').textContent = 'Защита включена'; $('#status').className = 'success';
-      timer = setInterval(updateTimer, 1000); window.dadway.ip().then(ip => $('#ip').textContent = ip).catch(() => {}); toast('VPN подключён');
+      renderPing(state.pingMs); timer = setInterval(updateTimer, 1000); window.dadway.ip().then(ip => $('#ip').textContent = ip).catch(() => {}); toast('VPN подключён');
     }
   } catch (error) { renderDisconnected('Ошибка подключения'); toast(error.message, 5200); } finally { button.disabled = false; }
 }

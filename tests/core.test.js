@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const { buildConfig, formatConnectionError, VpnCore } = require('../src/core');
+const { buildConfig, endpointPing, formatConnectionError, VpnCore } = require('../src/core');
 
 test('uses bundled Xray directly with a Cyrillic profile path', async t => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dadway-runtime-test-'));
@@ -37,4 +37,10 @@ test('uses safari for XHTTP REALITY links that request chrome', () => {
   const config = buildConfig(link);
 
   assert.equal(config.outbounds[0].streamSettings.realitySettings.fingerprint, 'safari');
+});
+
+test('shows the fresh TCP latency of the VPN endpoint as ping', () => {
+  assert.equal(endpointPing({ host: 'vpn.example', port: 443, latency: 47.4 }), 47);
+  assert.equal(endpointPing({ host: 'vpn.example', port: 443, latency: null }), null);
+  assert.equal(endpointPing({ host: 'vpn.example', port: 443 }), null);
 });

@@ -85,6 +85,12 @@ function tcpPing(host, port, timeout = 3500) {
   });
 }
 
+function endpointPing(server) {
+  if (server?.latency === null || server?.latency === undefined) return null;
+  const latency = Number(server?.latency);
+  return Number.isFinite(latency) && latency >= 0 ? Math.max(1, Math.round(latency)) : null;
+}
+
 async function checkServers(servers) {
   return Promise.all(servers.map(async s => { const latency = await tcpPing(s.host, s.port); return { ...s, latency, available: latency !== null }; }));
 }
@@ -232,7 +238,10 @@ class VpnCore {
       this.proc.once('error', error => { clearTimeout(timer); reject(error); });
       this.proc.once('exit', code => { clearTimeout(timer); reject(new Error(`Xray завершился с кодом ${code}`)); });
     });
-    await enableSystemProxy(this.proxySnapshotPath); this.log(`Подключено: ${server.name}`); return { connected: true, startedAt: this.startedAt };
+    await enableSystemProxy(this.proxySnapshotPath);
+    const pingMs = endpointPing(server);
+    this.log(`Подключено: ${server.name}; адрес=${server.host}:${server.port}; пинг=${pingMs === null ? 'недоступен' : `${pingMs} мс`}`);
+    return { connected: true, startedAt: this.startedAt, pingMs };
   }
   async disconnect() {
     this.stopping = true;
@@ -257,4 +266,4 @@ function formatConnectionError(error) {
   return message;
 }
 
-module.exports = { SUBSCRIPTION_URL, SubscriptionAccessError, request, decodeSubscription, parseServers, checkServers, buildConfig, formatConnectionError, VpnCore, SOCKS_PORT, HTTP_PORT };
+module.exports = { SUBSCRIPTION_URL, SubscriptionAccessError, request, decodeSubscription, parseServers, checkServers, endpointPing, buildConfig, formatConnectionError, VpnCore, SOCKS_PORT, HTTP_PORT };
