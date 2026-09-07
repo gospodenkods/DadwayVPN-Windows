@@ -94,7 +94,7 @@ function streamSettings(q) {
   const network = q.type || 'tcp'; const security = q.security || (q.tls === 'tls' ? 'tls' : 'none');
   const s = { network, security };
   if (security === 'tls') s.tlsSettings = { serverName: q.sni || q.host || '', fingerprint: q.fp || 'chrome', allowInsecure: q.allowInsecure === '1' };
-  if (security === 'reality') s.realitySettings = { serverName: q.sni || q.serverName || '', fingerprint: q.fp || 'chrome', publicKey: q.pbk || '', shortId: q.sid || '', spiderX: q.spx || '' };
+  if (security === 'reality') s.realitySettings = { serverName: q.sni || q.serverName || '', fingerprint: !q.fp || q.fp.toLowerCase() === 'chrome' ? 'safari' : q.fp, publicKey: q.pbk || '', shortId: q.sid || '', spiderX: q.spx || '' };
   if (network === 'ws') s.wsSettings = { path: q.path || '/', headers: q.host ? { Host: q.host } : {} };
   if (network === 'grpc') s.grpcSettings = { serviceName: q.serviceName || q.path || '' };
   if (network === 'xhttp') s.xhttpSettings = { path: q.path || '/', mode: q.mode || 'auto', host: q.host || '' };

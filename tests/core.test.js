@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const { formatConnectionError, VpnCore } = require('../src/core');
+const { buildConfig, formatConnectionError, VpnCore } = require('../src/core');
 
 test('uses bundled Xray directly with a Cyrillic profile path', async t => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dadway-runtime-test-'));
@@ -30,4 +30,11 @@ test('replaces Windows filesystem errors with a readable message', () => {
     formatConnectionError(error),
     'Не удалось запустить Xray Core. Переустановите Dadway VPN поверх текущей версии или разрешите Xray в антивирусе.'
   );
+});
+
+test('uses safari for XHTTP REALITY links that request chrome', () => {
+  const link = 'vless://00000000-0000-0000-0000-000000000000@example.com:443?encryption=none&type=xhttp&security=reality&sni=www.ebay.de&fp=chrome&pbk=key&sid=abcd&path=%2Fapi';
+  const config = buildConfig(link);
+
+  assert.equal(config.outbounds[0].streamSettings.realitySettings.fingerprint, 'safari');
 });
