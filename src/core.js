@@ -1,6 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const net = require('node:net');
+const tls = require('node:tls');
 const https = require('node:https');
 const http = require('node:http');
 const { spawn, execFile } = require('node:child_process');
@@ -77,6 +78,31 @@ async function notifyProxyChanged() { await execFileAsync('powershell.exe', ['-N
 async function enableSystemProxy(file) { const key = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings'; if (!fs.existsSync(file)) { const snapshot = {}; for (const name of ['ProxyEnable', 'ProxyServer', 'ProxyOverride']) snapshot[name] = await readRegistryValue(key, name); fs.writeFileSync(file, JSON.stringify(snapshot)); } await execFileAsync('reg.exe', ['add', key, '/v', 'ProxyEnable', '/t', 'REG_DWORD', '/d', '1', '/f']); await execFileAsync('reg.exe', ['add', key, '/v', 'ProxyServer', '/t', 'REG_SZ', '/d', `http=127.0.0.1:${HTTP_PORT};https=127.0.0.1:${HTTP_PORT}`, '/f']); await execFileAsync('reg.exe', ['add', key, '/v', 'ProxyOverride', '/t', 'REG_SZ', '/d', '<local>', '/f']); await notifyProxyChanged(); }
 async function restoreSystemProxy(file) { if (!fs.existsSync(file)) return; const key = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings', snapshot = JSON.parse(fs.readFileSync(file, 'utf8')); for (const name of ['ProxyEnable', 'ProxyServer', 'ProxyOverride']) await writeRegistryValue(key, name, snapshot[name]); fs.unlinkSync(file); await notifyProxyChanged(); }
 function waitForEndpoint(host, port, timeout = 10000) { const deadline = Date.now() + timeout; return new Promise((resolve, reject) => { const poll = () => { const socket = net.createConnection({ host, port }); let done = false; const finish = ok => { if (done) return; done = true; socket.destroy(); if (ok) resolve(); else if (Date.now() >= deadline) reject(new Error(`Локальный SOCKS-прокси ${host}:${port} не запустился за 10 секунд`)); else setTimeout(poll, 200); }; socket.setTimeout(250); socket.once('connect', () => finish(true)); socket.once('timeout', () => finish(false)); socket.once('error', () => finish(false)); }; poll(); }); }
+function proxyGet(url, timeout = 20000) {
+  return new Promise((resolve, reject) => {
+    const target = new URL(url), socket = net.createConnection({ host: '127.0.0.1', port: HTTP_PORT });
+    let header = Buffer.alloc(0), settled = false;
+    const fail = error => { if (settled) return; settled = true; socket.destroy(); reject(error); };
+    socket.setTimeout(timeout, () => fail(new Error('Превышено время ожидания проверки соединения')));
+    socket.once('error', fail);
+    socket.once('connect', () => socket.write(`CONNECT ${target.hostname}:${target.port || 443} HTTP/1.1\r\nHost: ${target.hostname}:${target.port || 443}\r\nProxy-Connection: close\r\n\r\n`));
+    const onTunnelData = chunk => {
+      header = Buffer.concat([header, chunk]); const end = header.indexOf('\r\n\r\n'); if (end < 0) return;
+      socket.removeListener('data', onTunnelData); const status = header.subarray(0, end).toString('latin1').match(/^HTTP\/\d(?:\.\d)?\s+(\d+)/)?.[1];
+      if (status !== '200') return fail(new Error(`Локальный прокси вернул HTTP ${status || 'ошибку'}`));
+      const extra = header.subarray(end + 4); if (extra.length) socket.unshift(extra);
+      const secure = tls.connect({ socket, servername: target.hostname, rejectUnauthorized: true });
+      secure.setTimeout(timeout, () => fail(new Error('Превышено время ожидания проверки соединения'))); secure.once('error', fail);
+      secure.once('secureConnect', () => secure.write(`GET ${target.pathname}${target.search} HTTP/1.1\r\nHost: ${target.host}\r\nAccept: */*\r\nAccept-Encoding: identity\r\nConnection: close\r\n\r\n`));
+      let response = Buffer.alloc(0); secure.on('data', data => { response = Buffer.concat([response, data]); }); secure.once('end', () => {
+        if (settled) return; const split = response.indexOf('\r\n\r\n'); if (split < 0) return fail(new Error('Некорректный ответ сервера проверки'));
+        const headers = response.subarray(0, split).toString('latin1'), code = Number(headers.match(/^HTTP\/\d(?:\.\d)?\s+(\d+)/)?.[1]); if (code < 200 || code >= 300) return fail(new Error(`Сервер проверки вернул HTTP ${code}`));
+        settled = true; resolve(response.subarray(split + 4));
+      });
+    };
+    socket.on('data', onTunnelData);
+  });
+}
 async function isAdministrator() { try { await execFileAsync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', "if (([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { exit 0 } else { exit 1 }"]); return true; } catch { return false; } }
 
 class VpnCore {
@@ -93,7 +119,7 @@ class VpnCore {
     try { await waitForEndpoint('127.0.0.1', SOCKS_PORT); if (mode === 'proxy') await enableSystemProxy(this.proxySnapshotPath); return { connected: true, startedAt: this.startedAt, mode }; } catch (e) { await this.disconnect(); throw e; }
   }
   async disconnect() { this.stopping = true; await restoreSystemProxy(this.proxySnapshotPath).catch(() => {}); if (this.proc) { const proc = this.proc; this.proc = null; proc.kill(); this.log('VPN отключён'); } this.startedAt = 0; if (fs.existsSync(this.configPath)) fs.unlinkSync(this.configPath); }
-  async connectionTest() { let failure; for (let i = 0; i < 3; i++) { try { const start = Date.now(), ip = await execFileAsync('curl.exe', ['--silent', '--show-error', '--fail', '--max-time', '12', '--proxy', `socks5h://127.0.0.1:${SOCKS_PORT}`, 'https://api.ipify.org']); const pingMs = Date.now() - start, speed = await execFileAsync('curl.exe', ['--silent', '--show-error', '--fail', '--max-time', '20', '--proxy', `socks5h://127.0.0.1:${SOCKS_PORT}`, '--output', 'NUL', '--write-out', '%{speed_download}', 'https://speed.cloudflare.com/__down?bytes=1000000']); return { ip: ip.stdout.trim(), pingMs, bytesPerSecond: Math.round(Number(speed.stdout) || 0) }; } catch (e) { failure = e; if (i < 2) await new Promise(r => setTimeout(r, 800)); } } throw failure; }
+  async connectionTest() { let failure; for (let i = 0; i < 3; i++) { try { const started = Date.now(), ip = (await proxyGet('https://api.ipify.org', 12000)).toString('utf8').trim(), pingMs = Date.now() - started, speedStarted = Date.now(), payload = await proxyGet('https://speed.cloudflare.com/__down?bytes=1000000', 20000), bytesPerSecond = Math.round(payload.length / Math.max((Date.now() - speedStarted) / 1000, 0.001)); return { ip, pingMs, bytesPerSecond }; } catch (e) { failure = e; if (i < 2) await new Promise(r => setTimeout(r, 800)); } } throw failure; }
   async metrics() { const data = JSON.parse((await request(`http://127.0.0.1:${METRICS_PORT}/debug/vars`)).toString()); let down = 0, up = 0; const walk = (v, key = '') => { if (v && typeof v === 'object') for (const [k, child] of Object.entries(v)) walk(child, k); else if (typeof v === 'number') { if (/downlink/i.test(key)) down += v; if (/uplink/i.test(key)) up += v; } }; walk(data); return { down, up }; }
 }
-module.exports = { DEFAULT_SUBSCRIPTION_URL, SubscriptionAccessError, request, decodeSubscription, sourceTitle, parseServers, checkServers, outboundFromLink, buildConfig, waitForEndpoint, isAdministrator, VpnCore, SOCKS_PORT, HTTP_PORT, METRICS_PORT };
+module.exports = { DEFAULT_SUBSCRIPTION_URL, SubscriptionAccessError, request, decodeSubscription, sourceTitle, parseServers, checkServers, outboundFromLink, buildConfig, waitForEndpoint, proxyGet, isAdministrator, VpnCore, SOCKS_PORT, HTTP_PORT, METRICS_PORT };
