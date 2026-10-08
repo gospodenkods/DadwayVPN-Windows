@@ -21,8 +21,15 @@ class SubscriptionAccessError extends Error {
 }
 function request(url, options = {}) {
   return new Promise((resolve, reject) => {
-    const req = (url.startsWith('https:') ? https : http).get(url, { headers: { 'User-Agent': 'DadwayVPN/8.5.6 Windows', Accept: 'text/plain, */*', 'Cache-Control': 'no-cache, no-store', Pragma: 'no-cache' }, timeout: 20000, ...options }, res => {
-      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) { res.resume(); return resolve(request(new URL(res.headers.location, url).href, options)); }
+    const { redirectCount = 0, originalOrigin = new URL(url).origin, sensitiveHeaders = [], ...requestOptions } = options;
+    const headers = { 'User-Agent': 'DadwayVPN/8.6.7 Windows', Accept: 'text/plain, */*', 'Cache-Control': 'no-cache, no-store', Pragma: 'no-cache', ...requestOptions.headers };
+    if (new URL(url).origin !== originalOrigin) for (const name of sensitiveHeaders) delete headers[name];
+    const req = (url.startsWith('https:') ? https : http).get(url, { ...requestOptions, headers, timeout: 20000 }, res => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        res.resume(); if (redirectCount >= 5) return reject(new Error('Слишком много перенаправлений подписки'));
+        const next = new URL(res.headers.location, url); if (new URL(url).protocol === 'https:' && next.protocol !== 'https:') return reject(new Error('Небезопасное перенаправление подписки'));
+        return resolve(request(next.href, { ...options, redirectCount: redirectCount + 1, originalOrigin }));
+      }
       if (ACCESS_DENIED_STATUSES.has(res.statusCode)) { res.resume(); return reject(new SubscriptionAccessError(res.statusCode)); }
       if (res.statusCode < 200 || res.statusCode >= 300) { res.resume(); const e = new Error(`HTTP ${res.statusCode}`); e.statusCode = res.statusCode; return reject(e); }
       const chunks = []; res.on('data', c => chunks.push(c)); res.on('end', () => resolve(Buffer.concat(chunks)));
@@ -46,8 +53,9 @@ function parseServers(text, source = null) {
     } catch { return null; }
   }).filter(Boolean);
 }
-function tcpPing(host, port, timeout = 3500) { return new Promise(resolve => { const start = Date.now(), socket = net.createConnection({ host, port }); let settled = false; const done = ok => { if (settled) return; settled = true; socket.destroy(); resolve(ok ? Date.now() - start : null); }; socket.setTimeout(timeout); socket.once('connect', () => done(true)); socket.once('timeout', () => done(false)); socket.once('error', () => done(false)); }); }
-async function checkServers(servers) { return Promise.all(servers.map(async s => { const latency = await tcpPing(s.host, s.port); return { ...s, latency, available: latency !== null }; })); }
+function tcpPing(host, port, timeout = 2500) { return new Promise(resolve => { const start = Date.now(), socket = net.createConnection({ host, port }); let settled = false; const done = ok => { if (settled) return; settled = true; socket.destroy(); resolve(ok ? Math.max(1, Date.now() - start) : null); }; socket.setTimeout(timeout); socket.once('connect', () => done(true)); socket.once('timeout', () => done(false)); socket.once('error', () => done(false)); }); }
+async function measureLatency(host, port, attempts = 3) { const samples = []; for (let i = 0; i < attempts; i++) { const value = await tcpPing(host, port); if (value !== null) samples.push(value); } if (!samples.length) return null; samples.sort((a, b) => a - b); const middle = Math.floor(samples.length / 2); return samples.length % 2 ? samples[middle] : Math.round((samples[middle - 1] + samples[middle]) / 2); }
+async function checkServers(servers) { const endpoints = new Map(); for (const server of servers) { const key = `${server.host.toLowerCase()}:${server.port}`; if (!endpoints.has(key)) endpoints.set(key, tcpPing(server.host, server.port)); } const results = new Map(await Promise.all([...endpoints].map(async ([key, promise]) => [key, await promise]))); return servers.map(server => { const latency = results.get(`${server.host.toLowerCase()}:${server.port}`); return { ...server, latency, available: latency !== null }; }); }
 function parseQuery(u) { return Object.fromEntries([...u.searchParams.entries()].map(([k, v]) => [k.toLowerCase(), v])); }
 function streamSettings(q) {
   const network = q.type || q.net || 'tcp', security = q.security || (q.tls === 'tls' ? 'tls' : 'none'), s = { network, security };
@@ -122,4 +130,4 @@ class VpnCore {
   async connectionTest() { let failure; for (let i = 0; i < 3; i++) { try { const started = Date.now(), ip = (await proxyGet('https://api.ipify.org', 12000)).toString('utf8').trim(), pingMs = Date.now() - started, speedStarted = Date.now(), payload = await proxyGet('https://speed.cloudflare.com/__down?bytes=1000000', 20000), bytesPerSecond = Math.round(payload.length / Math.max((Date.now() - speedStarted) / 1000, 0.001)); return { ip, pingMs, bytesPerSecond }; } catch (e) { failure = e; if (i < 2) await new Promise(r => setTimeout(r, 800)); } } throw failure; }
   async metrics() { const data = JSON.parse((await request(`http://127.0.0.1:${METRICS_PORT}/debug/vars`)).toString()); let down = 0, up = 0; const walk = (v, key = '') => { if (v && typeof v === 'object') for (const [k, child] of Object.entries(v)) walk(child, k); else if (typeof v === 'number') { if (/downlink/i.test(key)) down += v; if (/uplink/i.test(key)) up += v; } }; walk(data); return { down, up }; }
 }
-module.exports = { DEFAULT_SUBSCRIPTION_URL, SubscriptionAccessError, request, decodeSubscription, sourceTitle, parseServers, checkServers, outboundFromLink, buildConfig, waitForEndpoint, proxyGet, isAdministrator, VpnCore, SOCKS_PORT, HTTP_PORT, METRICS_PORT };
+module.exports = { DEFAULT_SUBSCRIPTION_URL, SubscriptionAccessError, request, decodeSubscription, sourceTitle, parseServers, checkServers, measureLatency, outboundFromLink, buildConfig, waitForEndpoint, proxyGet, isAdministrator, VpnCore, SOCKS_PORT, HTTP_PORT, METRICS_PORT };
