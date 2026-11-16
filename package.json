@@ -1,6 +1,6 @@
 {
   "name": "dadway-vpn-windows",
-  "version": "8.6.7",
+  "version": "8.7.0",
   "description": "Dadway VPN client for Windows",
   "main": "src/main.js",
   "author": "Dadway",
@@ -19,11 +19,11 @@
     "appId": "ru.dadway.vpn.windows",
     "productName": "Dadway VPN",
     "artifactName": "DadwayVPN-Windows-${version}-${arch}.${ext}",
-    "directories": { "output": "release" },
+    "directories": { "output": "release", "buildResources": "build" },
     "compression": "store",
     "files": ["src/**/*", "design-assets/**/*", "package.json"],
     "extraResources": [{ "from": "runtime", "to": "runtime", "filter": ["**/*"] }],
     "win": { "target": ["nsis"], "icon": "design-assets/launcher_icon_smooth-v4-source.png" },
-    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true, "createStartMenuShortcut": true, "shortcutName": "Dadway VPN", "runAfterFinish": true, "deleteAppDataOnUninstall": false }
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true, "createStartMenuShortcut": true, "shortcutName": "Dadway VPN", "runAfterFinish": true, "deleteAppDataOnUninstall": false, "include": "build/installer.nsh" }
   }
 }
